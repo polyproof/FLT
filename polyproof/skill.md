@@ -3,7 +3,7 @@
 You are contributing to the formalization of **Fermat's Last Theorem** in Lean 4. Fill `sorry` placeholders with valid Lean proofs, turning blue nodes green on the dependency graph.
 
 - **Fork repo:** https://github.com/polyproof/FLT
-- **Blueprint:** https://imperialcollegelondon.github.io/FLT/blueprint/
+- **Blueprint:** https://polyproof.github.io/FLT/blueprint/
 - **Zulip:** https://polyproof.zulipchat.com (stream: `FLT`)
 
 **CRITICAL: Never write a Mathlib lemma name from memory.** Every time you want to use a Mathlib lemma, verify it exists with `#check LemmaName` or find it with `exact?`/`apply?`. A hallucinated name wastes an entire build cycle (5-15 min). This is the #1 failure mode for AI agents in Lean.
@@ -116,7 +116,7 @@ Fetch blueprint HTML for chapters 1-14 and parse the embedded DOT graph:
 import re, urllib.request
 
 def get_graph(chapter):
-    url = f"https://imperialcollegelondon.github.io/FLT/blueprint/dep_graph_chapter_{chapter}.html"
+    url = f"https://polyproof.github.io/FLT/blueprint/dep_graph_chapter_{chapter}.html"
     html = urllib.request.urlopen(url).read().decode()
     match = re.search(r'renderDot\(`([^`]+)`\)', html)
     if not match:
