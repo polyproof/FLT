@@ -1,0 +1,173 @@
+name: PR Gate
+# Runs on our fork's trusted code — safe to use pull_request_target for write access.
+# IMPORTANT: Never checkout or execute code from the fork PR in this workflow.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, labeled, unlabeled]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  statuses: write
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Classify PR and check approval gate
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request || context.payload.review?.pull_request;
+            if (!pr) return;
+
+            const prNumber = pr.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const sha = pr.head.sha;
+
+            // --- PR Classification (from diff, not from labels) ---
+            const files = await github.rest.pulls.listFiles({ owner, repo, pull_number: prNumber, per_page: 100 });
+
+            let hasSorryRemoved = false;
+            let hasSorryAdded = false;
+            let hasNewDeclaration = false;
+            let hasStatementEdit = false;
+            let hasImportChange = false;
+            let hasFileRename = false;
+            let hasTexOnly = false;
+            let hasLeanChange = false;
+
+            const declKeywords = /^[+-]\s*(theorem|lemma|def|instance|structure|class|inductive|abbrev)\s/;
+            const sorryPattern = /^[+-].*\bsorry\b/;
+            const importPattern = /^[+-]\s*(import|open)\s/;
+            const byPattern = /^[+-].*:=\s*by\b/;
+
+            for (const file of files.data) {
+              if (file.status === 'renamed') hasFileRename = true;
+              if (file.filename.endsWith('.tex')) hasTexOnly = true;
+              if (!file.filename.endsWith('.lean')) continue;
+              hasLeanChange = true;
+
+              if (!file.patch) continue;
+              const lines = file.patch.split('\n');
+
+              for (const line of lines) {
+                if (line.startsWith('-') && sorryPattern.test(line)) hasSorryRemoved = true;
+                if (line.startsWith('+') && sorryPattern.test(line)) hasSorryAdded = true;
+                if (line.startsWith('+') && declKeywords.test(line)) hasNewDeclaration = true;
+                if (importPattern.test(line)) hasImportChange = true;
+                // Detect statement edits: declaration keyword line was modified
+                if (line.startsWith('-') && declKeywords.test(line)) {
+                  // Check if same declaration appears in added lines (statement changed)
+                  const declName = line.match(/(?:theorem|lemma|def|instance)\s+(\S+)/)?.[1];
+                  if (declName && lines.some(l => l.startsWith('+') && l.includes(declName) && declKeywords.test(l))) {
+                    hasStatementEdit = true;
+                  }
+                }
+              }
+            }
+
+            // Classify (conservative: uncertain = restructure)
+            let prType = 'restructure';
+            if (hasStatementEdit) {
+              prType = 'statement_edit';
+            } else if (hasFileRename || hasImportChange) {
+              prType = 'restructure';
+            } else if (hasSorryRemoved && !hasSorryAdded && !hasNewDeclaration && !hasImportChange && !hasFileRename && hasLeanChange) {
+              prType = 'simple_fill';
+            } else if (hasSorryRemoved && (hasSorryAdded || hasNewDeclaration)) {
+              prType = 'decomposition';
+            } else if (!hasLeanChange && hasTexOnly) {
+              prType = 'simple_fill'; // blueprint-only update
+            }
+
+            // Apply label
+            const labels = ['simple_fill', 'decomposition', 'statement_edit', 'restructure'];
+            const currentLabels = pr.labels.map(l => l.name);
+            for (const label of labels) {
+              if (currentLabels.includes(label) && label !== prType) {
+                await github.rest.issues.removeLabel({ owner, repo, issue_number: prNumber, name: label }).catch(() => {});
+              }
+            }
+            if (!currentLabels.includes(prType)) {
+              await github.rest.issues.addLabels({ owner, repo, issue_number: prNumber, labels: [prType] });
+            }
+
+            // --- Approval Gate ---
+            const thresholds = { simple_fill: 0, decomposition: 2, statement_edit: 3, restructure: 3 };
+            const required = thresholds[prType];
+
+            let approvalCount = 0;
+            if (required > 0) {
+              const reviews = await github.rest.pulls.listReviews({ owner, repo, pull_number: prNumber });
+              // Deduplicate: keep latest review per user, exclude PR author
+              const latestByUser = {};
+              for (const review of reviews.data) {
+                if (review.user.login === pr.user.login) continue; // no self-review
+                latestByUser[review.user.login] = review.state;
+              }
+              approvalCount = Object.values(latestByUser).filter(s => s === 'APPROVED').length;
+            }
+
+            const passed = approvalCount >= required;
+
+            // Set commit status
+            await github.rest.repos.createCommitStatus({
+              owner, repo, sha,
+              state: passed ? 'success' : 'pending',
+              context: 'approval-gate',
+              description: passed
+                ? `${prType}: approved (${approvalCount}/${required})`
+                : `${prType}: needs ${required - approvalCount} more approval(s) (${approvalCount}/${required})`,
+            });
+
+            // Auto-merge for simple_fill
+            if (prType === 'simple_fill' && passed) {
+              try {
+                await github.graphql(`
+                  mutation($prId: ID!) {
+                    enablePullRequestAutoMerge(input: { pullRequestId: $prId, mergeMethod: SQUASH }) {
+                      clientMutationId
+                    }
+                  }
+                `, { prId: pr.node_id });
+                core.info(`Auto-merge enabled for PR #${prNumber}`);
+              } catch (e) {
+                core.warning(`Could not enable auto-merge: ${e.message}`);
+              }
+            }
+
+            core.info(`PR #${prNumber}: type=${prType}, approvals=${approvalCount}/${required}, passed=${passed}`);
+
+      - name: Close competing PRs on merge
+        if: github.event.action == 'closed' && github.event.pull_request.merged == true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // When a simple_fill merges, close other PRs touching the same files
+            const pr = context.payload.pull_request;
+            if (!pr.labels.some(l => l.name === 'simple_fill')) return;
+
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const mergedFiles = await github.rest.pulls.listFiles({ owner, repo, pull_number: pr.number });
+            const mergedPaths = new Set(mergedFiles.data.map(f => f.filename));
+
+            const openPRs = await github.rest.pulls.list({ owner, repo, state: 'open', per_page: 100 });
+            for (const openPR of openPRs.data) {
+              if (openPR.number === pr.number) continue;
+              const openFiles = await github.rest.pulls.listFiles({ owner, repo, pull_number: openPR.number });
+              const overlap = openFiles.data.some(f => mergedPaths.has(f.filename));
+              if (overlap) {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: openPR.number,
+                  body: `This PR was closed because PR #${pr.number} was merged, modifying the same files. Feel free to rebase and reopen if your changes are still needed.`,
+                });
+                await github.rest.pulls.update({ owner, repo, pull_number: openPR.number, state: 'closed' });
+                core.info(`Closed competing PR #${openPR.number}`);
+              }
+            }
