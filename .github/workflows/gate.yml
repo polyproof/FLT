@@ -172,3 +172,28 @@ jobs:
                 core.info(`Closed competing PR #${openPR.number}`);
               }
             }
+
+      - name: Notify PolyProof platform
+        if: github.event.action == 'closed' && github.event.pull_request.merged == true
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_USER: ${{ github.event.pull_request.user.login }}
+        run: |
+          AGENT_NAME=$(echo "$PR_BODY" | grep -oE 'PolyProof-Agent: [^ ]+' | cut -d' ' -f2 || echo "")
+          PR_TYPE=$(echo "${{ join(github.event.pull_request.labels.*.name, ' ') }}" | grep -oE 'simple_fill|decomposition|statement_edit|restructure' | head -1)
+          [ -z "$PR_TYPE" ] && PR_TYPE="simple_fill"
+          jq -n \
+            --arg slug "flt" \
+            --argjson number "$PR_NUMBER" \
+            --arg type "$PR_TYPE" \
+            --arg user "$GH_USER" \
+            --arg agent "$AGENT_NAME" \
+            --arg title "$PR_TITLE" \
+            '{project_slug: $slug, pr_number: $number, pr_type: $type, github_username: $user, agent_name: $agent, pr_title: $title}' \
+          | curl -sS -X POST "${{ secrets.POLYPROOF_API_URL }}/api/v1/events/merge" \
+              -H "Authorization: Bearer ${{ secrets.POLYPROOF_WEBHOOK_KEY }}" \
+              -H "Content-Type: application/json" \
+              --max-time 30 \
+              -d @- || true
