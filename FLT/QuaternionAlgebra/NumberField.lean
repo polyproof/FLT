@@ -225,17 +225,35 @@ noncomputable def GL2.localTameLevel (v : HeightOneSpectrum (𝓞 F)) :
     rw [Valuation.map_sub_swap, v_det_val_mem_localFullLevel_eq_one ha.1]
     simp [ha.2]
 
--- the clever way to prove this is a theorem of the form "if A is an open submonoid of R
--- then Aˣ is an open subgroup of Rˣ"
-theorem GL2.localTameLevel.isOpen (v : HeightOneSpectrum (𝓞 F)) :
-    IsOpen (GL2.localTameLevel v).carrier :=
-  sorry
+private theorem continuous_GL2_entry (v : HeightOneSpectrum (𝓞 F)) (i j : Fin 2) :
+    Continuous (fun x : GL (Fin 2) (v.adicCompletion F) => x.val i j) :=
+  Units.continuous_val.matrix_elem i j
 
--- the clever way to prove this is a theorem of the form "if A is a compact submonoid of R
--- then Aˣ is a compact subgroup of Rˣ"
+theorem GL2.localTameLevel.isOpen (v : HeightOneSpectrum (𝓞 F)) :
+    IsOpen (GL2.localTameLevel v).carrier := by
+  -- carrier = {x ��� localFullLevel v | v(x₀₀ - x₁₁) < 1 ∧ v(x₁₀) < 1}
+  -- Intersection of three open sets
+  change IsOpen ({x | x ∈ localFullLevel v} ∩ {x | Valued.v (x.val 0 0 - x.val 1 1) < 1 ∧
+    Valued.v (x.val 1 0) < 1})
+  apply IsOpen.inter (localFullLevel.isOpen v)
+  apply IsOpen.inter
+  · exact (Valued.isOpen_ball _ 1).preimage
+      ((continuous_GL2_entry v 0 0).sub (continuous_GL2_entry v 1 1))
+  · exact (Valued.isOpen_ball _ 1).preimage (continuous_GL2_entry v 1 0)
+
 theorem GL2.localTameLevel.isCompact (v : HeightOneSpectrum (𝓞 F)) :
-    IsCompact (GL2.localTameLevel v).carrier :=
-  sorry
+    IsCompact (GL2.localTameLevel v).carrier := by
+  -- carrier is a closed subset of the compact localFullLevel
+  -- {v < 1} is clopen in a valued field, so the conditions define a closed set
+  apply IsCompact.of_isClosed_subset (localFullLevel.isCompact v)
+  · change IsClosed ({x | x ∈ localFullLevel v} ∩ {x | Valued.v (x.val 0 0 - x.val 1 1) < 1 ∧
+      Valued.v (x.val 1 0) < 1})
+    apply IsClosed.inter (localFullLevel.isCompact v).isClosed
+    apply IsClosed.inter
+    · exact (Valued.isClopen_ball _ 1).1.preimage
+        ((continuous_GL2_entry v 0 0).sub (continuous_GL2_entry v 1 1))
+    · exact (Valued.isClopen_ball _ 1).1.preimage (continuous_GL2_entry v 1 0)
+  · intro x hx; exact hx.1
 
 end IsDedekindDomain
 
