@@ -1,7 +1,25 @@
 import FLT.Data.Hurwitz
 import FLT.Data.QHat
+import Mathlib.RingTheory.Flat.Stability
+import Mathlib.RingTheory.Flat.Localization
+import Mathlib.LinearAlgebra.TensorProduct.Pi
 
 open scoped TensorProduct
+
+namespace Hurwitz
+
+/-- A linear equivalence between `Fin 4 → ℤ` and the Hurwitz quaternions. -/
+def linearEquivFin4 : (Fin 4 → ℤ) ≃ₗ[ℤ] 𝓞 where
+  toFun v := ⟨v 0, v 1, v 2, v 3⟩
+  invFun z := ![z.re, z.im_o, z.im_i, z.im_oi]
+  left_inv v := by ext i; fin_cases i <;> simp [Matrix.cons_val_zero, Matrix.cons_val_one]
+  right_inv z := by ext <;> simp
+  map_add' u v := by ext <;> simp
+  map_smul' r v := by ext <;> simp
+
+instance : Module.Free ℤ 𝓞 := Module.Free.of_equiv linearEquivFin4
+
+end Hurwitz
 
 /-- The base change of the Hurwitz quaternions to ZHat. -/
 noncomputable def HurwitzHat : Type := 𝓞 ⊗[ℤ] ZHat
@@ -45,8 +63,19 @@ noncomputable instance : Ring D^ := Algebra.TensorProduct.instRing
 noncomputable abbrev j₁ : D →ₐ[ℤ] D^ := Algebra.TensorProduct.includeLeft
 -- (Algebra.TensorProduct.assoc ℤ ℚ 𝓞 ZHat).symm.trans Algebra.TensorProduct.includeLeft
 
+instance : Module.Flat ℤ D := by
+  change Module.Flat ℤ (ℚ ⊗[ℤ] 𝓞)
+  have e1 : (ℚ ⊗[ℤ] 𝓞) ≃ₗ[ℤ] (ℚ ⊗[ℤ] (Fin 4 → ℤ)) :=
+    TensorProduct.congr (.refl ℤ ℚ) Hurwitz.linearEquivFin4.symm
+  have e2 : (ℚ ⊗[ℤ] (Fin 4 → ℤ)) ≃ₗ[ℤ] (Fin 4 → ℚ) :=
+    (TensorProduct.piRight (R := ℤ) (S := ℤ) (N := ℚ) (M := fun _ : Fin 4 => ℤ)).trans
+      (LinearEquiv.piCongrRight (fun _ => TensorProduct.rid ℤ ℚ))
+  have e3 := (DirectSum.linearEquivFunOnFintype ℤ (Fin 4) fun _ => ℚ).symm
+  exact Module.Flat.of_linearEquiv (e1.trans (e2.trans e3))
+
 lemma injective_hRat :
-    Function.Injective j₁ := sorry -- flatness
+    Function.Injective j₁ :=
+  Algebra.TensorProduct.includeLeft_injective (algebraMap ℤ ZHat).injective_int
 
 /-- The inclusion from the profinite Hurwitz quaternions to to 𝔸+𝔸i+𝔸j+𝔸k,
 with 𝔸 the finite adeles of ℚ. -/
@@ -54,8 +83,20 @@ noncomputable abbrev j₂ : 𝓞^ →ₐ[ℤ] D^ :=
   ((Algebra.TensorProduct.assoc ℤ ℤ ℤ ℚ 𝓞 ZHat).symm : ℚ ⊗ 𝓞^ ≃ₐ[ℤ] D ⊗ ZHat).toAlgHom.comp
   (Algebra.TensorProduct.includeRight : 𝓞^ →ₐ[ℤ] ℚ ⊗ 𝓞^)
 
+instance : Module.Flat ℤ 𝓞^ := by
+  change Module.Flat ℤ (𝓞 ⊗[ℤ] ZHat)
+  have e1 : (𝓞 ⊗[ℤ] ZHat) ≃ₗ[ℤ] ((Fin 4 → ℤ) ⊗[ℤ] ZHat) :=
+    TensorProduct.congr Hurwitz.linearEquivFin4.symm (.refl ℤ ZHat)
+  have e2 : ((Fin 4 → ℤ) ⊗[ℤ] ZHat) ≃ₗ[ℤ] (Fin 4 → ZHat) :=
+    (TensorProduct.piLeft (R := ℤ) (N := ZHat) (M := fun _ : Fin 4 => ℤ)).trans
+      (LinearEquiv.piCongrRight (fun _ => TensorProduct.lid ℤ ZHat))
+  have e3 := (DirectSum.linearEquivFunOnFintype ℤ (Fin 4) fun _ => ZHat).symm
+  exact Module.Flat.of_linearEquiv (e1.trans (e2.trans e3))
+
 lemma injective_zHat :
-    Function.Injective j₂ := sorry -- flatness
+    Function.Injective j₂ :=
+  (Algebra.TensorProduct.assoc ℤ ℤ ℤ ℚ 𝓞 ZHat).symm.injective.comp
+    (Algebra.TensorProduct.includeRight_injective (RingHom.injective_int (algebraMap ℤ ℚ)))
 
 -- should I rearrange tensors? Not sure if D^ should be (ℚ ⊗ 𝓞) ⊗ ℤhat or ℚ ⊗ (𝓞 ⊗ Zhat)
 lemma canonicalForm (z : D^) : ∃ (N : ℕ+) (z' : 𝓞^), z = j₁ ((N⁻¹ : ℚ) ⊗ₜ 1 : D) * j₂ z' := by
