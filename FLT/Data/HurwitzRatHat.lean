@@ -24,6 +24,9 @@ namespace HurwitzRat
 scoped notation "D" => HurwitzRat
 
 noncomputable instance : Ring D := Algebra.TensorProduct.instRing
+noncomputable instance : Module ℚ D := inferInstanceAs (Module ℚ (ℚ ⊗[ℤ] 𝓞))
+noncomputable instance : Algebra ℚ D := inferInstanceAs (Algebra ℚ (ℚ ⊗[ℤ] 𝓞))
+instance : IsScalarTower ℤ ℚ D := inferInstanceAs (IsScalarTower ℤ ℚ (ℚ ⊗[ℤ] 𝓞))
 
 end HurwitzRat
 
@@ -46,7 +49,13 @@ noncomputable abbrev j₁ : D →ₐ[ℤ] D^ := Algebra.TensorProduct.includeLef
 -- (Algebra.TensorProduct.assoc ℤ ℚ 𝓞 ZHat).symm.trans Algebra.TensorProduct.includeLeft
 
 lemma injective_hRat :
-    Function.Injective j₁ := sorry -- flatness
+    Function.Injective j₁ := by
+  -- j₁ = includeLeft : D →ₐ[ℤ] D ⊗[ℤ] ZHat
+  -- D = ℚ ⊗[ℤ] 𝓞 is flat over ℤ via: Flat ℤ 𝓞 → Flat ℚ D (baseChange) → Flat ℤ D (trans)
+  haveI : Module.Flat ℤ ℚ := IsLocalization.flat ℚ (nonZeroDivisors ℤ)
+  haveI : Module.Flat ℚ D := Module.Flat.baseChange ℤ ℚ 𝓞
+  haveI : Module.Flat ℤ D := Module.Flat.trans ℤ ℚ D
+  exact Algebra.TensorProduct.includeLeft_injective (Int.cast_injective (α := ZHat))
 
 /-- The inclusion from the profinite Hurwitz quaternions to to 𝔸+𝔸i+𝔸j+𝔸k,
 with 𝔸 the finite adeles of ℚ. -/
@@ -55,7 +64,7 @@ noncomputable abbrev j₂ : 𝓞^ →ₐ[ℤ] D^ :=
   (Algebra.TensorProduct.includeRight : 𝓞^ →ₐ[ℤ] ℚ ⊗ 𝓞^)
 
 lemma injective_zHat :
-    Function.Injective j₂ := sorry -- flatness
+    Function.Injective j₂ := sorry -- needs Module.Flat ℤ 𝓞^ (see thread)
 
 -- should I rearrange tensors? Not sure if D^ should be (ℚ ⊗ 𝓞) ⊗ ℤhat or ℚ ⊗ (𝓞 ⊗ Zhat)
 lemma canonicalForm (z : D^) : ∃ (N : ℕ+) (z' : 𝓞^), z = j₁ ((N⁻¹ : ℚ) ⊗ₜ 1 : D) * j₂ z' := by
