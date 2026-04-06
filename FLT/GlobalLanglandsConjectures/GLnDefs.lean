@@ -177,7 +177,29 @@ def actionTensorCAlg'2 :
   (actionTensorCAlg' G E).comp (SubalgebraClass.val _)
 
 instance : Module ℝ C^∞⟮𝓘(ℝ, E), G; 𝓘(ℝ, ℝ), ℝ⟯ := inferInstance
-instance : Module ℂ C^∞⟮𝓘(ℝ, E), G; 𝓘(ℝ, ℂ), ℂ⟯ := sorry
+
+-- ℂ multiplication is smooth as a real map (bilinear continuous → contDiff → contMDiff)
+instance instContMDiffRingComplex (n : WithTop ℕ∞) : ContMDiffRing 𝓘(ℝ, ℂ) n ℂ :=
+  { instNormedSpaceLieAddGroup (𝕜 := ℝ) (E := ℂ) with
+    contMDiff_mul := by
+      rw [contMDiff_iff]
+      refine ⟨continuous_mul, fun x y => ?_⟩
+      simp only [mfld_simps]
+      rw [contDiffOn_univ]
+      exact contDiff_mul }
+
+-- Ring on ℂ-valued smooth functions from ContMDiffRing
+noncomputable instance : Ring C^∞⟮𝓘(ℝ, E), G; 𝓘(ℝ, ℂ), ℂ⟯ := ContMDiffMap.ring
+
+-- Module ℂ on ℂ-valued smooth functions: ℂ acts by pointwise multiplication via constant functions
+noncomputable instance : Module ℂ C^∞⟮𝓘(ℝ, E), G; 𝓘(ℝ, ℂ), ℂ⟯ :=
+  Module.compHom _ ({
+    toFun := fun c => ⟨fun _ => c, contMDiff_const⟩
+    map_one' := Subtype.ext rfl
+    map_mul' := fun _ _ => Subtype.ext rfl
+    map_zero' := Subtype.ext rfl
+    map_add' := fun _ _ => Subtype.ext rfl
+  } : ℂ →+* C^∞⟮𝓘(ℝ, E), G; 𝓘(ℝ, ℂ), ℂ⟯)
 
 def Alg := UniversalEnvelopingAlgebra ℂ (ℂ ⊗[ℝ] LeftInvariantDerivation 𝓘(ℝ, E) G)
 instance : Semiring (Alg G E) := inferInstanceAs (Semiring (UniversalEnvelopingAlgebra ..))
