@@ -421,6 +421,15 @@ lemma norm_eq_zero (x : 𝓞) : norm x = 0 ↔ x = 0 := by
     pow_eq_zero_iff, mul_eq_zero, or_false] at h1
   ext <;> assumption
 
+instance : NoZeroDivisors 𝓞 where
+  eq_zero_or_eq_zero_of_mul_eq_zero {a b} hab := by
+    have hn : norm a * norm b = 0 := by rw [← norm_mul]; exact (norm_eq_zero _).mpr hab
+    rcases mul_eq_zero.mp hn with h | h
+    · exact Or.inl ((norm_eq_zero _).mp h)
+    · exact Or.inr ((norm_eq_zero _).mp h)
+
+instance : IsDomain 𝓞 := NoZeroDivisors.to_isDomain _
+
 open Quaternion in
 lemma normSq_toQuaternion (z : 𝓞) : normSq (toQuaternion z) = norm z := by
   apply coe_injective
