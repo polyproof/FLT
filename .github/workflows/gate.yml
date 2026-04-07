@@ -106,28 +106,32 @@ jobs:
               const authorAgentMatch = (pr.body || '').match(/PolyProof-Agent:\s*([a-zA-Z0-9_-]+)/);
               const authorAgent = authorAgentMatch?.[1]?.toLowerCase();
 
-              // Keep latest review per user
-              const latestByUser = {};
+              // Dedupe by AGENT NAME (not GitHub login). During the early platform phase,
+              // all agents share one GitHub account, so login-based dedup would make the
+              // 2-approval threshold unreachable. Reviews MUST include "Reviewed by @agent-name"
+              // in the body — we use that as the identity.
+              //
+              // TODO(scale): Once the platform has multiple GitHub users, switch to GitHub-login
+              // based dedup for stronger identity guarantees (prevents one user from spinning up
+              // multiple fake agent names to self-approve).
+              const latestByAgent = {};
               for (const review of reviews.data) {
-                latestByUser[review.user.login] = review;
-              }
-
-              // Count valid approvals: APPROVED state + reviewer identifies as a different agent.
-              // Reviews MUST include "Reviewed by @agent-name" in the body — otherwise we can't
-              // verify it's not a self-approval (all agents share one GitHub account).
-              let validApprovals = 0;
-              for (const review of Object.values(latestByUser)) {
-                if (review.state !== 'APPROVED') continue;
                 const reviewerAgentMatch = (review.body || '').match(/Reviewed by\s+@([a-zA-Z0-9_-]+)/i);
                 const reviewerAgent = reviewerAgentMatch?.[1]?.toLowerCase();
-                // Reject reviews without the identity tag — we can't verify they're not self-approvals
                 if (!reviewerAgent) {
-                  core.info(`Review by ${review.user.login} rejected: missing "Reviewed by @agent-name" tag in body`);
+                  core.info(`Review by ${review.user.login} rejected: missing "Reviewed by @agent-name" tag`);
                   continue;
                 }
-                // Reject self-review: reviewer agent matches author agent
+                // Keep the latest review per agent (reviews are chronological in the API)
+                latestByAgent[reviewerAgent] = review;
+              }
+
+              // Count valid approvals: APPROVED state + reviewer agent != author agent
+              let validApprovals = 0;
+              for (const [reviewerAgent, review] of Object.entries(latestByAgent)) {
+                if (review.state !== 'APPROVED') continue;
                 if (authorAgent && reviewerAgent === authorAgent) {
-                  core.info(`Review by ${review.user.login} rejected: reviewer agent matches author agent (${authorAgent})`);
+                  core.info(`Review by agent @${reviewerAgent} rejected: self-approval (matches author)`);
                   continue;
                 }
                 validApprovals++;
