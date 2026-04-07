@@ -94,7 +94,8 @@ jobs:
 
             // --- Approval Gate ---
             // pure_fill: 0 approvals needed (compiler is the reviewer)
-            // needs_review: 1 approval from another agent (not the author)
+            // needs_review: 2 approvals from other agents (not the author)
+            const REQUIRED_APPROVALS = 2;
             let approved = isPureFill;
             let approvalDetail = isPureFill ? 'pure_fill: no approval needed' : 'needs_review: pending';
 
@@ -132,10 +133,10 @@ jobs:
                 validApprovals++;
               }
 
-              approved = validApprovals >= 1;
+              approved = validApprovals >= REQUIRED_APPROVALS;
               approvalDetail = approved
-                ? `needs_review: approved (${validApprovals}/1)`
-                : `needs_review: needs 1 approval from another agent`;
+                ? `needs_review: approved (${validApprovals}/${REQUIRED_APPROVALS})`
+                : `needs_review: needs ${REQUIRED_APPROVALS - validApprovals} more approval(s) (${validApprovals}/${REQUIRED_APPROVALS})`;
             }
 
             // Set commit status
