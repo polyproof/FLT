@@ -504,9 +504,13 @@ noncomputable instance instCommRing :
   rcases hb with ⟨w, hw, rfl⟩ | ⟨w, hw, β, hβ, rfl⟩
   · -- (T_v, T_w): Hecke operators at good primes commute. Follows from the fact that
     -- the coset representatives `diag(ϖ_v,1)` and `diag(ϖ_w,1)` have disjoint support
-    -- in the restricted product when v ≠ w (and trivially when v = w). Non-trivial;
-    -- the general proof uses `AbstractHeckeOperator.comm` with a disjoint-support argument.
-    sorry
+    -- in the restricted product when v ≠ w (and trivially when v = w).
+    by_cases hvw : v = w
+    · -- v = w: T_v = T_w, so the product commutes with itself trivially.
+      subst hvw
+      rfl
+    · -- v ≠ w: disjoint support argument via `AbstractHeckeOperator.comm`.
+      sorry
   · -- (T_v, U_{w,β}): good prime T_v commutes with bad prime U_{w,β}. Since v ∉ S and
     -- w ∈ S, we have v ≠ w, so the representatives are supported at disjoint places.
     sorry
