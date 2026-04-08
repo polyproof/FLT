@@ -12,7 +12,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: '*/30 * * * *'  # reconcile missed merges every 30 min
+    - cron: '*/5 * * * *'  # reconcile missed merges every 5 min (GitHub Actions minimum)
 
 permissions:
   contents: write
@@ -231,26 +231,33 @@ jobs:
             core.info(`PR #${prNumber}: ${prType}, ${approvalDetail}`);
 
   # -----------------------------------------------------------------------
-  # on-merge: runs on push to main AND on schedule (every 30 min).
+  # on-merge: notifies the platform of merged PRs.
   #
-  # Push trigger is the fast path — fires immediately on direct pushes.
-  # BUT: GitHub does NOT fire workflow events for actions taken by
-  # GITHUB_TOKEN (anti-loop protection). When gate.yml enables auto-merge
-  # via GITHUB_TOKEN, the eventual merge is performed by GitHub Actions
-  # itself — no push event fires. We discovered this with PRs #14 and #15
-  # which merged but never triggered the karma webhook.
+  # GitHub does NOT fire workflow events for actions taken by GITHUB_TOKEN
+  # (anti-loop protection). Since gate.yml uses GITHUB_TOKEN to enable
+  # auto-merge, the eventual squash merge is invisible to our workflow —
+  # no push event fires, and /events/merge is never called. Discovered
+  # with PRs #14/#15 which merged but had no merge_event recorded.
   #
-  # The schedule trigger is the safety net — every 30 min, scan recently
-  # merged PRs and notify the platform for any that haven't been recorded
-  # yet. The /events/merge endpoint is idempotent (unique constraint on
+  # We run this job on three triggers for defense in depth:
+  #   1. push to main — fast path for direct pushes (bypasses the bug)
+  #   2. schedule every 5 min — safety net if agents are idle
+  #   3. pull_request_target / pull_request_review / issue_comment —
+  #      piggybacks on agent activity. When agents are active, these
+  #      fire within seconds of any PR event, so missed merges get
+  #      reconciled almost instantly (not after a 5-min cron tick).
+  #
+  # The /events/merge endpoint is idempotent (unique constraint on
   # project_id + pr_number), so duplicate notifications are no-ops.
   #
   # TODO(scale): Once we use a PAT instead of GITHUB_TOKEN for auto-merge,
-  # the push trigger will fire reliably and the schedule reconciliation
-  # can be removed (or reduced to a daily safety check).
+  # the push trigger will fire reliably and we can drop the extra triggers.
   # -----------------------------------------------------------------------
   on-merge:
-    if: github.event_name == 'push' || github.event_name == 'schedule'
+    # Runs on all events; the script internally decides fast-path vs reconcile.
+    # Skipping pull_request_review_comment and similar narrow events — the
+    # main three (pull_request_target, pull_request_review, issue_comment)
+    # cover all agent activity.
     runs-on: ubuntu-latest
     steps:
       - name: Notify platform for merged PR(s)
@@ -269,7 +276,8 @@ jobs:
               return;
             }
 
-            // Retry helper: 3 attempts with exponential backoff, 15s timeout per attempt
+            // Retry helper: 3 attempts with exponential backoff, 15s timeout per attempt.
+            // Returns the parsed JSON response on success, or null on failure.
             async function postWithRetry(path, payload) {
               const url = `${apiUrl}${path}`;
               for (let i = 0; i < 3; i++) {
@@ -289,11 +297,15 @@ jobs:
                   const text = await response.text();
                   if (response.ok) {
                     core.info(`POST ${path} #${payload.pr_number || ''}: ${response.status} ${text}`);
-                    return true;
+                    try {
+                      return JSON.parse(text);
+                    } catch {
+                      return { status: 'ok' };
+                    }
                   }
                   if (response.status >= 400 && response.status < 500) {
                     core.warning(`POST ${path} #${payload.pr_number || ''}: ${response.status} ${text} (not retrying 4xx)`);
-                    return false;
+                    return null;
                   }
                   core.warning(`POST ${path} attempt ${i+1}: ${response.status} ${text}`);
                 } catch (e) {
@@ -302,7 +314,7 @@ jobs:
                 }
                 if (i < 2) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
               }
-              return false;
+              return null;
             }
 
             async function notifyMergedPR(pr) {
@@ -317,8 +329,8 @@ jobs:
                            : labelNames.includes('needs_review') ? 'needs_review'
                            : 'pure_fill';  // default
 
-              // 1. Notify /events/merge (idempotent — safe to call multiple times)
-              const merged = await postWithRetry('/api/v1/events/merge', {
+              // 1. Notify /events/merge (idempotent — duplicates return "already_processed")
+              const mergeResp = await postWithRetry('/api/v1/events/merge', {
                 project_slug: 'flt',
                 pr_number: pr.number,
                 pr_type: prType,
@@ -327,11 +339,10 @@ jobs:
                 pr_title: pr.title,
               });
 
-              // 2. If PolyProof-Thread tag present, post announcement to the thread.
-              // Only post if /events/merge actually created a new event (not "already_processed"),
-              // otherwise we'd spam thread on every reconciliation run. We can't easily distinguish
-              // here, so we only post on the push fast-path, not on reconciliation.
-              if (merged && threadTopic && context.eventName === 'push') {
+              // 2. If this is a NEW merge event (status: created) AND the PR has
+              // a PolyProof-Thread tag, post the announcement to the thread.
+              // "already_processed" means we saw this merge before → don't re-post.
+              if (mergeResp && mergeResp.status === 'created' && threadTopic) {
                 await postWithRetry('/api/v1/events/thread-post', {
                   project_slug: 'flt',
                   topic: threadTopic,
@@ -353,21 +364,30 @@ jobs:
               await notifyMergedPR(pr);
             } else {
               // Reconciliation path: scan recently merged PRs and notify for any
-              // not yet recorded. The /events/merge endpoint is idempotent so duplicates
-              // are no-ops on the backend.
-              const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-              const recentPRs = await github.paginate(github.rest.pulls.list, {
+              // not yet recorded. Window depends on trigger:
+              // - schedule (every 5 min): 20 min window (4x safety margin)
+              // - PR events (piggyback): 15 min window (covers recent merges
+              //   without re-scanning a full day every time an agent posts a comment)
+              //
+              // The /events/merge endpoint is idempotent so duplicates are no-ops.
+              const windowMinutes = 20;
+              const since = new Date(Date.now() - windowMinutes * 60 * 1000).toISOString();
+              const recentPRs = await github.rest.pulls.list({
                 owner, repo,
                 state: 'closed',
                 base: 'main',
                 sort: 'updated',
                 direction: 'desc',
-                per_page: 100,
+                per_page: 30,
               });
-              const mergedSince = recentPRs.filter(p =>
+              const mergedSince = recentPRs.data.filter(p =>
                 p.merged_at && new Date(p.merged_at) > new Date(since)
               );
-              core.info(`Reconciliation: ${mergedSince.length} PRs merged in last 24h`);
+              if (mergedSince.length === 0) {
+                core.info(`Reconciliation (${context.eventName}): no merges in last ${windowMinutes}min`);
+                return;
+              }
+              core.info(`Reconciliation (${context.eventName}): ${mergedSince.length} PRs merged in last ${windowMinutes}min`);
               for (const pr of mergedSince) {
                 await notifyMergedPR(pr);
               }
