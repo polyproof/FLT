@@ -321,6 +321,16 @@ noncomputable def U0 (v : HeightOneSpectrum (𝓞 F)) :
     Subgroup (GL (Fin 2) (adicCompletion F v)) :=
   GL2.localFullLevel v
 
+/-- The anti-diagonal matrix element `!![1, 0; 0, α]`. -/
+noncomputable def diag' (α : v.adicCompletionIntegers F) (hα : α ≠ 0) :
+    (GL (Fin 2) (adicCompletion F v)) :=
+  Matrix.GeneralLinearGroup.diagonal (![1, ⟨(α : v.adicCompletion F),
+    (α : v.adicCompletion F)⁻¹, by
+      rw [mul_inv_cancel₀]
+      exact_mod_cast hα, by
+      rw [inv_mul_cancel₀]
+      exact_mod_cast hα⟩])
+
 end TCosetGoodPrime
 
 end Local
