@@ -13,6 +13,28 @@ scoped notation "𝓞^" => HurwitzHat
 
 noncomputable instance : Ring 𝓞^ := Algebra.TensorProduct.instRing
 
+/-- `𝓞^` is torsion-free as an additive group: this follows from `Module.Flat ℤ 𝓞^`,
+which holds because both `𝓞` and `ZHat` are flat over `ℤ` (the former via Hurwitz being
+a torsion-free integral domain over the Dedekind domain `ℤ`, the latter via `ZHat_flat`). -/
+instance : IsAddTorsionFree 𝓞^ := by
+  -- Build Module.Flat ℤ 𝓞 inline (same chain as in injective_hRat)
+  haveI : NoZeroDivisors 𝓞 := ⟨fun {a b} hab => by
+    have hn : Hurwitz.norm a * Hurwitz.norm b = 0 := by
+      rw [← Hurwitz.norm_mul]; exact (Hurwitz.norm_eq_zero _).mpr hab
+    rcases mul_eq_zero.mp hn with h | h
+    · exact Or.inl ((Hurwitz.norm_eq_zero _).mp h)
+    · exact Or.inr ((Hurwitz.norm_eq_zero _).mp h)⟩
+  haveI : IsDomain 𝓞 := NoZeroDivisors.to_isDomain _
+  haveI : IsAddTorsionFree 𝓞 := IsDomain.instIsAddTorsionFreeOfCharZero _
+  haveI : Module.Flat ℤ 𝓞 := by
+    rw [IsDedekindDomain.flat_iff_torsion_eq_bot]
+    exact Submodule.isTorsionFree_iff_torsion_eq_bot.mp inferInstance
+  haveI : Module.Flat ℤ (𝓞 ⊗[ℤ] ZHat) := inferInstance
+  haveI : Module.Flat ℤ 𝓞^ := by change Module.Flat ℤ (𝓞 ⊗[ℤ] ZHat); infer_instance
+  rw [← Module.isTorsionFree_int_iff_isAddTorsionFree]
+  rw [Submodule.isTorsionFree_iff_torsion_eq_bot]
+  exact Module.Flat.torsion_eq_bot
+
 /-- The map `𝓞 → 𝓞^` sending `y` to `y ⊗ₜ 1` is surjective modulo `N`.
 That is, every element of `𝓞 ⊗[ℤ] ZHat` is congruent to an element of `𝓞` modulo `N`. -/
 lemma surjective_pnat_quotient (N : ℕ+) (z : 𝓞 ⊗[ℤ] ZHat) :
