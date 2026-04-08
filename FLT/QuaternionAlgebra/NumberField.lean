@@ -299,6 +299,19 @@ lemma GL2.toAdicCompletion_restrictedProduct_symm_val_apply
       (FiniteAdeleRing.GL2.restrictedProduct.symm x)).val i j) = (x w).val i j := by
   rfl
 
+/-- The unit-level version of `toAdicCompletion_restrictedProduct_symm_val_apply`:
+applying `GL2.toAdicCompletion w` to the inverse image of `x` under the restricted-
+product equivalence yields `x w` directly. Useful for transporting global statements
+about `GL₂(𝔸_F^∞)` to local statements at each place. -/
+lemma GL2.toAdicCompletion_restrictedProduct_symm_apply
+    (w : HeightOneSpectrum (𝓞 F))
+    (x : Πʳ (v : HeightOneSpectrum (𝓞 F)),
+      [(GL (Fin 2) (v.adicCompletion F)), (M2.localFullLevel v).units]) :
+    GL2.toAdicCompletion w
+      (FiniteAdeleRing.GL2.restrictedProduct.symm x) = x w := by
+  ext i j
+  exact GL2.toAdicCompletion_restrictedProduct_symm_val_apply w x i j
+
 /-- Bridging lemma: applying `GL2.toAdicCompletion w` to the embedding of a single
 local element `g_loc` at place `v` via the restricted product isomorphism gives
 `g_loc` if `w = v` and `1` otherwise. -/
