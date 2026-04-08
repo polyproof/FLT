@@ -13,6 +13,12 @@ scoped notation "𝓞^" => HurwitzHat
 
 noncomputable instance : Ring 𝓞^ := Algebra.TensorProduct.instRing
 
+/-- The canonical ℤ-algebra inclusion `𝓞 → 𝓞^` sending `y` to `y ⊗ₜ 1`. -/
+noncomputable abbrev toHurwitzHat : 𝓞 →ₐ[ℤ] 𝓞^ := Algebra.TensorProduct.includeLeft
+
+/-- The underlying function of `toHurwitzHat` is `y ↦ y ⊗ₜ 1`. -/
+lemma toHurwitzHat_apply (y : 𝓞) : toHurwitzHat y = y ⊗ₜ[ℤ] (1 : ZHat) := rfl
+
 /-- `𝓞^` is torsion-free as an additive group: this follows from `Module.Flat ℤ 𝓞^`,
 which holds because both `𝓞` and `ZHat` are flat over `ℤ`. -/
 instance : IsAddTorsionFree 𝓞^ := by
