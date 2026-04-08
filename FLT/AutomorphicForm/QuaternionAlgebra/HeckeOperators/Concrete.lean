@@ -498,13 +498,29 @@ noncomputable instance instCommRing :
   unfold HeckeAlgebra
   apply Algebra.adjoinCommRingOfComm R
   rintro a ha b hb
-  -- TODO: case split on `ha`, `hb` to handle the four generator pairs:
+  -- Case split on `ha`, `hb` to handle the four generator pairs:
   --   (T_v, T_w), (T_v, U_{w,β}), (U_{v,α}, T_w), (U_{v,α}, U_{w,β}).
-  -- The diagonal case (U_{v,α}, U_{v,β}) follows from `HeckeOperator.U_comm`;
-  -- all other cases use `AbstractHeckeOperator.comm` with representatives
-  -- supported at distinct primes, which commute via
-  -- `RestrictedProduct.mul_comm_of_disjoint_mulSupport`.
-  sorry
+  rcases ha with ⟨v, hv, rfl⟩ | ⟨v, hv, α, hα, rfl⟩ <;>
+  rcases hb with ⟨w, hw, rfl⟩ | ⟨w, hw, β, hβ, rfl⟩
+  · -- (T_v, T_w): Hecke operators at good primes commute. Follows from the fact that
+    -- the coset representatives `diag(ϖ_v,1)` and `diag(ϖ_w,1)` have disjoint support
+    -- in the restricted product when v ≠ w (and trivially when v = w). Non-trivial;
+    -- the general proof uses `AbstractHeckeOperator.comm` with a disjoint-support argument.
+    sorry
+  · -- (T_v, U_{w,β}): good prime T_v commutes with bad prime U_{w,β}. Since v ∉ S and
+    -- w ∈ S, we have v ≠ w, so the representatives are supported at disjoint places.
+    sorry
+  · -- (U_{v,α}, T_w): symmetric to the previous case.
+    sorry
+  · -- (U_{v,α}, U_{w,β}): bad prime operators.
+    by_cases hvw : v = w
+    · -- v = w: use `HeckeOperator.U_comm`. Need to transport `hβ` across `hvw`.
+      subst hvw
+      change HeckeOperator.U r S R α hα * HeckeOperator.U r S R β hβ =
+        HeckeOperator.U r S R β hβ * HeckeOperator.U r S R α hα
+      exact HeckeOperator.U_comm r S R hα hβ
+    · -- v ≠ w: disjoint support argument.
+      sorry
 
 variable {F S} in
 /-- The Hecke operator Tᵥ as an element of the Hecke algebra. -/
