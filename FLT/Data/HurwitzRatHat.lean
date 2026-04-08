@@ -13,6 +13,26 @@ scoped notation "𝓞^" => HurwitzHat
 
 noncomputable instance : Ring 𝓞^ := Algebra.TensorProduct.instRing
 
+/-- `𝓞^` is torsion-free as an additive group: this follows from `Module.Flat ℤ 𝓞^`,
+which holds because both `𝓞` and `ZHat` are flat over `ℤ`. -/
+instance : IsAddTorsionFree 𝓞^ := by
+  haveI : NoZeroDivisors 𝓞 := ⟨fun {a b} hab => by
+    have hn : Hurwitz.norm a * Hurwitz.norm b = 0 := by
+      rw [← Hurwitz.norm_mul]; exact (Hurwitz.norm_eq_zero _).mpr hab
+    rcases mul_eq_zero.mp hn with h | h
+    · exact Or.inl ((Hurwitz.norm_eq_zero _).mp h)
+    · exact Or.inr ((Hurwitz.norm_eq_zero _).mp h)⟩
+  haveI : IsDomain 𝓞 := NoZeroDivisors.to_isDomain _
+  haveI : IsAddTorsionFree 𝓞 := IsDomain.instIsAddTorsionFreeOfCharZero _
+  haveI : Module.Flat ℤ 𝓞 := by
+    rw [IsDedekindDomain.flat_iff_torsion_eq_bot]
+    exact Submodule.isTorsionFree_iff_torsion_eq_bot.mp inferInstance
+  haveI : Module.Flat ℤ (𝓞 ⊗[ℤ] ZHat) := inferInstance
+  haveI : Module.Flat ℤ 𝓞^ := by change Module.Flat ℤ (𝓞 ⊗[ℤ] ZHat); infer_instance
+  rw [← Module.isTorsionFree_int_iff_isAddTorsionFree]
+  rw [Submodule.isTorsionFree_iff_torsion_eq_bot]
+  exact Module.Flat.torsion_eq_bot
+
 /-- The map `𝓞 → 𝓞^` sending `y` to `y ⊗ₜ 1` is surjective modulo `N`.
 That is, every element of `𝓞 ⊗[ℤ] ZHat` is congruent to an element of `𝓞` modulo `N`. -/
 lemma surjective_pnat_quotient (N : ℕ+) (z : 𝓞 ⊗[ℤ] ZHat) :
@@ -184,6 +204,60 @@ lemma j₁_rat_mul_comm (q : ℚ) (z : 𝓞^) :
     simp [mul_one, one_mul, mul_comm]
   | add x y hx hy =>
     rw [map_add, mul_add, add_mul, hx, hy]
+
+/-- Helper: given the constraint `j₁((1/N)⊗1) * j₂(a) * (j₁((1/M)⊗1) * j₂(b)) = 1` in `D^`,
+we conclude `a * b = NM` in `𝓞^`. The proof uses centrality of `j₁`-images of rationals
+plus `injective_zHat` to descend the equality. -/
+private lemma j₂_mul_descent
+    (N M : ℕ+) (a b : 𝓞^)
+    (h : j₁ ((N⁻¹ : ℚ) ⊗ₜ 1 : D) * j₂ a * (j₁ ((M⁻¹ : ℚ) ⊗ₜ 1 : D) * j₂ b) = 1) :
+    a * b = ((N * M : ℕ+) : 𝓞^) := by
+  apply injective_zHat
+  rw [map_mul]
+  -- Use centrality to rearrange and combine the rational scalars
+  have hcomm : j₂ a * j₁ ((M⁻¹ : ℚ) ⊗ₜ (1 : 𝓞) : D) =
+      j₁ ((M⁻¹ : ℚ) ⊗ₜ (1 : 𝓞) : D) * j₂ a := (j₁_rat_mul_comm _ a).symm
+  -- Step 1: pull out the rational scalars
+  have h1 : j₁ ((N⁻¹ : ℚ) ⊗ₜ (1 : 𝓞) : D) * j₁ ((M⁻¹ : ℚ) ⊗ₜ (1 : 𝓞) : D) * (j₂ a * j₂ b) = 1 := by
+    have heq : j₁ ((N⁻¹ : ℚ) ⊗ₜ (1 : 𝓞) : D) * j₂ a *
+        (j₁ ((M⁻¹ : ℚ) ⊗ₜ (1 : 𝓞) : D) * j₂ b) =
+        j₁ ((N⁻¹ : ℚ) ⊗ₜ (1 : 𝓞) : D) * j₁ ((M⁻¹ : ℚ) ⊗ₜ (1 : 𝓞) : D) * (j₂ a * j₂ b) := by
+      rw [mul_assoc (j₁ ((N⁻¹ : ℚ) ⊗ₜ (1 : 𝓞) : D)) (j₂ a),
+          ← mul_assoc (j₂ a), hcomm,
+          mul_assoc (j₁ ((M⁻¹ : ℚ) ⊗ₜ (1 : 𝓞) : D)) (j₂ a) (j₂ b),
+          ← mul_assoc (j₁ ((N⁻¹ : ℚ) ⊗ₜ (1 : 𝓞) : D))]
+    rw [← heq]; exact h
+  -- Step 2: Combine the j₁ rational scalars into j₁((1/(NM)) ⊗ 1)
+  have hj1mul : j₁ ((N⁻¹ : ℚ) ⊗ₜ (1 : 𝓞) : D) * j₁ ((M⁻¹ : ℚ) ⊗ₜ (1 : 𝓞) : D) =
+      j₁ (((N * M : ℕ+) : ℚ)⁻¹ ⊗ₜ 1 : D) := by
+    rw [← map_mul, Algebra.TensorProduct.tmul_mul_tmul, mul_one]
+    congr 1
+    push_cast
+    rw [mul_inv]
+  rw [hj1mul] at h1
+  -- h1 : j₁(((NM)⁻¹) ⊗ 1) * (j₂ a * j₂ b) = 1
+  -- Step 3: Multiply both sides on the left by j₁(NM ⊗ 1) to extract j₂ a * j₂ b = (NM : D^)
+  have hNM : j₁ (((N * M : ℕ+) : ℚ) ⊗ₜ (1 : 𝓞) : D) *
+      (j₁ (((N * M : ℕ+) : ℚ)⁻¹ ⊗ₜ (1 : 𝓞) : D) * (j₂ a * j₂ b)) =
+      j₁ (((N * M : ℕ+) : ℚ) ⊗ₜ (1 : 𝓞) : D) := by
+    rw [h1, mul_one]
+  rw [← mul_assoc] at hNM
+  rw [show j₁ (((N * M : ℕ+) : ℚ) ⊗ₜ (1 : 𝓞) : D) *
+       j₁ (((N * M : ℕ+) : ℚ)⁻¹ ⊗ₜ (1 : 𝓞) : D) = 1 from by
+    rw [← map_mul, Algebra.TensorProduct.tmul_mul_tmul, mul_one,
+      mul_inv_cancel₀ (by push_cast; positivity : ((N * M : ℕ+) : ℚ) ≠ 0)]
+    rfl] at hNM
+  rw [one_mul] at hNM
+  -- hNM : j₂ a * j₂ b = j₁(((N*M : ℕ+) : ℚ) ⊗ 1)
+  rw [hNM]
+  -- Goal: j₁((N*M : ℕ+) : ℚ ⊗ 1) = j₂((N*M : ℕ+) : 𝓞^)
+  -- Both equal (NM : D^). The cleanest path: cast NM through ℕ.
+  have hL : (((N * M : ℕ+) : ℚ) ⊗ₜ[ℤ] (1 : 𝓞) : D) = (((N * M : ℕ+) : ℕ) : D) := by
+    -- (↑NM ⊗ₜ 1 : D) = includeLeft (↑NM : ℚ) = (↑NM : D)
+    change (Algebra.TensorProduct.includeLeft : ℚ →ₐ[ℤ] D) (((N * M : ℕ+) : ℕ) : ℚ) = _
+    rw [map_natCast]
+  have hR : ((N * M : ℕ+) : 𝓞^) = (((N * M : ℕ+) : ℕ) : 𝓞^) := by push_cast; rfl
+  rw [hL, hR, map_natCast, map_natCast]
 
 lemma completed_units (z : D^ˣ) : ∃ (u : Dˣ) (v : 𝓞^ˣ), (z : D^) = j₁ u * j₂ v := sorry
 
