@@ -625,6 +625,30 @@ lemma U_mul {v : HeightOneSpectrum (𝓞 F)} (hv : v ∈ S)
   simp only [finsum_mem_image (unipotent_mul_diag_inj _ _ _)]
   simpa using U_mul_aux r S R hα hβ a
 
+omit [IsTotallyReal F] [IsQuaternionAlgebra F D] in
+/-- Two `unipotent_mul_diag` elements at distinct places commute: they have
+disjoint support in the restricted product. -/
+lemma unipotent_mul_diag_commute_of_ne
+    {v w : HeightOneSpectrum (𝓞 F)} (hvw : v ≠ w)
+    {α : v.adicCompletionIntegers F} (hα : α ≠ 0)
+    {β : w.adicCompletionIntegers F} (hβ : β ≠ 0)
+    (i : ↑(adicCompletionIntegers F v) ⧸ (Ideal.span {α}))
+    (j : ↑(adicCompletionIntegers F w) ⧸ (Ideal.span {β})) :
+    Commute (unipotent_mul_diag r α hα i) (unipotent_mul_diag r β hβ j) := by
+  unfold unipotent_mul_diag
+  have hrp : Commute
+      (RestrictedProduct.mulSingle
+        (fun v : HeightOneSpectrum (𝓞 F) => (M2.localFullLevel v).units) v
+        (Local.GL2.unipotent_mul_diag α hα
+          (Quotient.out i : adicCompletionIntegers F v)))
+      (RestrictedProduct.mulSingle
+        (fun v : HeightOneSpectrum (𝓞 F) => (M2.localFullLevel v).units) w
+        (Local.GL2.unipotent_mul_diag β hβ
+          (Quotient.out j : adicCompletionIntegers F w))) :=
+    RestrictedProduct.mulSingle_commute _ hvw _ _
+  exact (hrp.map (FiniteAdeleRing.GL2.restrictedProduct (F := F)).symm.toMonoidHom).map
+    (Units.mapEquiv r.symm.toMulEquiv).toMonoidHom
+
 omit [IsTotallyReal F] in
 lemma U_comm {v : HeightOneSpectrum (𝓞 F)} (hv : v ∈ S)
     {α β : v.adicCompletionIntegers F} (hα : α ≠ 0) (hβ : β ≠ 0) :
@@ -680,6 +704,10 @@ noncomputable instance instAlgebra :
   Algebra R (Algebra.adjoin R _ : Subalgebra R (WeightTwoAutomorphicFormOfLevel (U1 r S) R →ₗ[R]
       WeightTwoAutomorphicFormOfLevel (U1 r S) R))
 
+set_option maxHeartbeats 1000000 in
+-- Elaborating this instance exceeds the default heartbeat budget: the 4-way
+-- case split under `Algebra.adjoinCommRingOfComm` triggers `whnf` on
+-- `FiniteAdeleRing.GL2.restrictedProduct`, which is expensive to unfold.
 noncomputable instance instCommRing :
     CommRing (HeckeAlgebra F D r S R) := by
   -- #585: reduce commutativity of the Hecke algebra to pairwise commutativity of the
@@ -712,8 +740,18 @@ noncomputable instance instCommRing :
       change HeckeOperator.U r S R α hα * HeckeOperator.U r S R β hβ =
         HeckeOperator.U r S R β hβ * HeckeOperator.U r S R α hα
       exact HeckeOperator.U_comm r S R hv hα hβ
-    · -- v ≠ w: disjoint support argument.
-      sorry
+    · -- v ≠ w: disjoint support argument via `AbstractHeckeOperator.comm`.
+      change HeckeOperator.U r S R α hα * HeckeOperator.U r S R β hβ =
+        HeckeOperator.U r S R β hβ * HeckeOperator.U r S R α hα
+      unfold HeckeOperator.U
+      apply AbstractHeckeOperator.comm (R := R)
+      refine ⟨unipotent_mul_diag_image r α hα, unipotent_mul_diag_image r β hβ,
+        bijOn_unipotent_mul_diagU1_U1diagU1 r S α hα hv,
+        bijOn_unipotent_mul_diagU1_U1diagU1 r S β hβ hw, ?_⟩
+      rintro a ⟨i, _, rfl⟩ b ⟨j, _, rfl⟩
+      -- `unipotent_mul_diag r α hα i` is supported at `v` and
+      -- `unipotent_mul_diag r β hβ j` is supported at `w`, with `v ≠ w`, so they commute.
+      exact (HeckeOperator.unipotent_mul_diag_commute_of_ne r hvw hα hβ i j).eq
 
 variable {F S} in
 /-- The Hecke operator Tᵥ as an element of the Hecke algebra. -/
