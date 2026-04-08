@@ -122,10 +122,18 @@ def ofComplex (z : ℂ) {n : ℕ} (ρ : Weight n) (hρ : ρ.IsTrivial) :
       is_finite_cod := sorry -- needs a better name
       has_finite_level := sorry -- needs a better name
 
+/-- Any weight for GL₀ is trivial, because O(0) is the trivial group. -/
+lemma Weight.isTrivial_of_n_eq_zero (ρ : Weight 0) : ρ.IsTrivial := by
+  change ρ.w.rho = 1
+  ext x
+  have hx : x = 1 := Subsingleton.elim _ _
+  rw [hx, map_one]
+  rfl
+
 -- no idea why it's not computable
 noncomputable def classification (ρ : Weight 0) : AutomorphicFormForGLnOverQ 0 ρ ≃ ℂ where
   toFun f := f 1
-  invFun z := ofComplex z ρ sorry
+  invFun z := ofComplex z ρ (Weight.isTrivial_of_n_eq_zero ρ)
   left_inv := sorry
   right_inv := sorry
 
