@@ -45,6 +45,8 @@ jobs:
     steps:
       - name: Classify PR and check approval gate
         uses: actions/github-script@v7
+        env:
+          AUTOMERGE_PAT: ${{ secrets.AUTOMERGE_PAT }}
         with:
           script: |
             // Resolve the PR object across event types:
@@ -125,14 +127,8 @@ jobs:
 
             // --- Approval Gate ---
             // pure_fill: 0 approvals needed (compiler is the reviewer)
-            // needs_review: 1 approval from another agent (not the author)
-            //
-            // With 3-5 agents currently sharing one GitHub account, requiring 2
-            // approvals meant 40-66% of the active agent population had to weigh in
-            // on every structural PR. The epistemic value of a second approval from
-            // the same GitHub user is low. Revisit when there are 10+ agents on
-            // distinct accounts.
-            const REQUIRED_APPROVALS = 1;
+            // needs_review: 2 approvals from other agents (not the author)
+            const REQUIRED_APPROVALS = 2;
             let approved = isPureFill;
             let approvalDetail = isPureFill ? 'pure_fill: no approval needed' : 'needs_review: pending';
 
@@ -218,19 +214,66 @@ jobs:
               description: approvalDetail,
             });
 
-            // Enable auto-merge if approved (pure_fill always, needs_review when approved)
+            // Enable auto-merge if approved (pure_fill always, needs_review when approved).
+            //
+            // We use a separate PAT (AUTOMERGE_PAT) instead of GITHUB_TOKEN for this
+            // single call. Reason: when auto-merge is enabled via GITHUB_TOKEN, the
+            // eventual squash merge is performed by the GitHub Actions bot, and
+            // GitHub's anti-loop rule suppresses workflow events for that actor —
+            // so no push event fires and the on-merge job never runs to notify the
+            // platform. Using a PAT (a real user identity) means the resulting push
+            // event DOES fire, and karma is awarded immediately via the fast path.
+            //
+            // Fallback: if AUTOMERGE_PAT isn't set or fails, try GITHUB_TOKEN. The
+            // cron reconciliation will still catch missed merges.
+            const autoMergeMutation = `
+              mutation($prId: ID!) {
+                enablePullRequestAutoMerge(input: { pullRequestId: $prId, mergeMethod: SQUASH }) {
+                  clientMutationId
+                }
+              }
+            `;
+
             if (approved) {
-              try {
-                await github.graphql(`
-                  mutation($prId: ID!) {
-                    enablePullRequestAutoMerge(input: { pullRequestId: $prId, mergeMethod: SQUASH }) {
-                      clientMutationId
-                    }
+              const automergePat = process.env.AUTOMERGE_PAT;
+              let autoMergeEnabled = false;
+
+              // Prefer the PAT path. Use fetch directly instead of a new Octokit
+              // instance — actions/github-script doesn't expose the Octokit
+              // constructor, and a single GraphQL call doesn't need the SDK.
+              if (automergePat) {
+                try {
+                  const response = await fetch('https://api.github.com/graphql', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${automergePat}`,
+                      'Content-Type': 'application/json',
+                      'User-Agent': 'polyproof-gate',
+                    },
+                    body: JSON.stringify({
+                      query: autoMergeMutation,
+                      variables: { prId: pr.node_id },
+                    }),
+                  });
+                  const text = await response.text();
+                  if (response.ok && !text.includes('"errors"')) {
+                    core.info(`Auto-merge enabled for PR #${prNumber} via PAT`);
+                    autoMergeEnabled = true;
+                  } else {
+                    core.warning(`Auto-merge via PAT returned ${response.status}: ${text} — falling back to GITHUB_TOKEN`);
                   }
-                `, { prId: pr.node_id });
-                core.info(`Auto-merge enabled for PR #${prNumber}`);
-              } catch (e) {
-                core.warning(`Could not enable auto-merge: ${e.message}`);
+                } catch (e) {
+                  core.warning(`Auto-merge via PAT failed: ${e.message} — falling back to GITHUB_TOKEN`);
+                }
+              }
+
+              if (!autoMergeEnabled) {
+                try {
+                  await github.graphql(autoMergeMutation, { prId: pr.node_id });
+                  core.info(`Auto-merge enabled for PR #${prNumber} via GITHUB_TOKEN (reconciliation will handle karma)`);
+                } catch (e) {
+                  core.warning(`Could not enable auto-merge: ${e.message}`);
+                }
               }
             }
 
