@@ -185,6 +185,15 @@ lemma j₁_rat_mul_comm (q : ℚ) (z : 𝓞^) :
   | add x y hx hy =>
     rw [map_add, mul_add, add_mul, hx, hy]
 
+/-- Applying `canonicalForm` to both `z` and `z⁻¹` of a unit `z : (D^)ˣ`. -/
+lemma canonicalForm_unit_and_inv (z : D^ˣ) :
+    ∃ (N M : ℕ+) (a b : 𝓞^),
+      (z : D^) = j₁ ((N⁻¹ : ℚ) ⊗ₜ 1 : D) * j₂ a ∧
+      ((z⁻¹ : D^ˣ) : D^) = j₁ ((M⁻¹ : ℚ) ⊗ₜ 1 : D) * j₂ b := by
+  obtain ⟨N, a, ha⟩ := canonicalForm (z : D^)
+  obtain ⟨M, b, hb⟩ := canonicalForm ((z⁻¹ : D^ˣ) : D^)
+  exact ⟨N, M, a, b, ha, hb⟩
+
 lemma completed_units (z : D^ˣ) : ∃ (u : Dˣ) (v : 𝓞^ˣ), (z : D^) = j₁ u * j₂ v := sorry
 
 end HurwitzRatHat
