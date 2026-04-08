@@ -385,7 +385,7 @@ lemma completed_units (z : D^ˣ) : ∃ (u : Dˣ) (v : 𝓞^ˣ), (z : D^) = j₁ 
     change (Algebra.TensorProduct.includeLeft : 𝓞 →ₐ[ℤ] 𝓞^) (k : 𝓞) = _
     rw [map_natCast]
   have hNM_in_I : ((N * M : ℕ+) : 𝓞) ∈ I := by
-    show oToOhat ((N * M : ℕ+) : 𝓞) ∈ Submodule.span 𝓞^ ({w'} : Set 𝓞^)
+    change oToOhat ((N * M : ℕ+) : 𝓞) ∈ Submodule.span 𝓞^ ({w'} : Set 𝓞^)
     rw [show ((N * M : ℕ+) : 𝓞) = (((N * M : ℕ+) : ℕ) : 𝓞) from by push_cast; rfl,
       hoToOhat_natCast,
       show (((N * M : ℕ+) : ℕ) : 𝓞^) = ((N * M : ℕ+) : 𝓞^) from by push_cast; rfl,
