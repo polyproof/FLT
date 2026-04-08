@@ -314,6 +314,15 @@ theorem bijOn_unipotent_mul_diagU1_U1diagU1 :
 
 end CosetDecomposition
 
+section TCosetGoodPrime
+
+/-- The full local level subgroup for "good primes": GL2(O_v). -/
+noncomputable def U0 (v : HeightOneSpectrum (𝓞 F)) :
+    Subgroup (GL (Fin 2) (adicCompletion F v)) :=
+  GL2.localFullLevel v
+
+end TCosetGoodPrime
+
 end Local
 
 end TotallyDefiniteQuaternionAlgebra.WeightTwoAutomorphicForm.HeckeOperator
