@@ -704,6 +704,34 @@ noncomputable instance instAlgebra :
   Algebra R (Algebra.adjoin R _ : Subalgebra R (WeightTwoAutomorphicFormOfLevel (U1 r S) R →ₗ[R]
       WeightTwoAutomorphicFormOfLevel (U1 r S) R))
 
+namespace HeckeOperator
+
+set_option maxSynthPendingDepth 1 in
+open scoped TensorProduct.RightActions in
+omit [IsTotallyReal F] [IsQuaternionAlgebra F D] in
+/-- The two diagonal group elements `diag(ϖ_v, 1)` and `diag(ϖ_w, 1)` (pulled back through
+the rigidification `r`) commute unconditionally: diagonal matrices over a commutative ring
+always commute. This is the group-theoretic fact underlying the commutativity of the
+Hecke operators `T_v` and `T_w`; note however that commutation of the group elements
+alone is *not* sufficient to deduce commutation of the associated Hecke operators —
+that still requires a description of the double coset `U1 · diag(ϖ_v,1) · U1` as a union
+of single cosets (see `AbstractHeckeOperator.comm`). -/
+lemma T_diag_commute (v w : HeightOneSpectrum (𝓞 F)) :
+    Commute
+      (Units.map r.symm.toMonoidHom (Matrix.GeneralLinearGroup.diagonal
+        ![FiniteAdeleRing.localUniformiserUnit F v, 1]))
+      (Units.map r.symm.toMonoidHom (Matrix.GeneralLinearGroup.diagonal
+        ![FiniteAdeleRing.localUniformiserUnit F w, 1])) := by
+  refine Commute.map ?_ (Units.map r.symm.toMonoidHom)
+  -- Two diagonal matrices over a commutative ring commute.
+  ext i j
+  fin_cases i <;> fin_cases j <;>
+    simp [Matrix.GeneralLinearGroup.diagonal, Matrix.diagonal, Fin.isValue,
+          Matrix.cons_val_fin_one, Matrix.cons_val_zero, Matrix.cons_val_one,
+          Matrix.mul_apply, mul_comm]
+
+end HeckeOperator
+
 set_option maxHeartbeats 1000000 in
 -- Elaborating this instance exceeds the default heartbeat budget: the 4-way
 -- case split under `Algebra.adjoinCommRingOfComm` triggers `whnf` on
