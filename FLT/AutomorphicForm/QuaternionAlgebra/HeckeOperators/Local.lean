@@ -413,12 +413,32 @@ lemma injOn_T_cosets
       -- unipotent_mul_diag t₂ = !![α,t₂;0,1], so the product's (1,1) = α⁻¹.
       -- α⁻¹ ∉ O_v because ¬IsUnit α.
       have h11 := GL2.v_le_one_of_mem_localFullLevel _ hmem 1 1
-      -- The (1,1) entry of (diag')⁻¹ * unipotent_mul_diag t₂
+      -- The (1,1) entry of (diag')⁻¹ * unipotent_mul_diag t₂ is α⁻¹.
+      -- v(α⁻¹) ≤ 1 forces v(α) ≥ 1, but α ∈ O_v gives v(α) ≤ 1, so v(α) = 1,
+      -- making α a unit — contradicting hα_nonunit.
+      -- After simp, h11 gives Valued.v (α⁻¹ ...) ≤ 1.
+      -- But ¬IsUnit α means Valued.v α < 1, so Valued.v α⁻¹ > 1. Contradiction.
+      simp only [diag', unipotent_mul_diag, Matrix.GeneralLinearGroup.diagonal,
+        Matrix.coe_units_inv, Matrix.inv_def, Matrix.det_fin_two_of, mul_one, mul_zero,
+        sub_zero, Ring.inverse_eq_inv', Matrix.adjugate_fin_two_of, neg_zero,
+        Matrix.smul_of, Matrix.smul_cons, smul_eq_mul, Matrix.smul_empty,
+        Matrix.cons_mul, Matrix.vecMul_cons, Matrix.head_cons, Matrix.tail_cons,
+        Matrix.empty_vecMul, Fin.isValue] at h11
+      -- h11 now shows the (1,1) entry has valuation ≤ 1
+      -- This entry is α⁻¹, and since α is not a unit, α⁻¹ has valuation > 1.
+      apply hα_nonunit
+      rw [← IsLocalRing.notMem_maximalIdeal]
+      intro hmem
+      have hv_lt := (mem_completionIdeal_iff _ v _).mp hmem
+      -- hv_lt : Valued.v (α : adicCompletion F v) < 1
+      -- h11 : Valued.v (α⁻¹ ...) ≤ 1
+      -- These contradict each other since Valued.v (α⁻¹) = (Valued.v α)⁻¹ > 1
       sorry
   | some t₁ =>
     cases t₂ with
     | none =>
-      -- Symmetric: mk(unipotent_mul_diag t₁) = mk(diag') → contradiction.
+      -- Symmetric to none/some: (unipotent_mul_diag t₁)⁻¹ * diag' ∈ U0
+      -- would force α⁻¹ ∈ O_v, contradicting ¬IsUnit α.
       exfalso
       change (QuotientGroup.mk (s := U0 v)
           (unipotent_mul_diag α hα (Quotient.out t₁))) =
