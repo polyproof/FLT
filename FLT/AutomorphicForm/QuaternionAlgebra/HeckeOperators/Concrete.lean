@@ -8,6 +8,7 @@ import FLT.AutomorphicForm.QuaternionAlgebra.HeckeOperators.Abstract -- abstract
 import FLT.AutomorphicForm.QuaternionAlgebra.Defs -- definitions of automorphic forms
 import FLT.QuaternionAlgebra.NumberField -- rigidifications of quat algs
 import Mathlib.NumberTheory.NumberField.InfinitePlace.TotallyRealComplex
+import FLT.DedekindDomain.AdicValuation
 import Mathlib.RingTheory.DedekindDomain.FiniteAdeleRing
 import FLT.DedekindDomain.FiniteAdeleRing.LocalUnits -- for (π 0; 0 1)
 import FLT.Mathlib.Topology.Algebra.RestrictedProduct.TopologicalSpace
@@ -159,6 +160,34 @@ noncomputable def T (v : HeightOneSpectrum (𝓞 F)) :
     ![FiniteAdeleRing.localUniformiserUnit F v, 1])
   AbstractHeckeOperator.HeckeOperator (R := R) g (U1 r S) (U1 r S)
   (QuotientGroup.mk_image_finite_of_compact_of_open (U1_compact r S) (U1_open r S))
+
+/-- The local uniformizer at `v` as an element of the valuation subring `O_v`. -/
+noncomputable def uniformizerInt (v : HeightOneSpectrum (𝓞 F)) :
+    v.adicCompletionIntegers F :=
+  ⟨v.adicCompletionUniformizer F, by
+    rw [HeightOneSpectrum.mem_adicCompletionIntegers,
+      HeightOneSpectrum.adicCompletionUniformizer_spec]
+    -- ofAdd(-1) ≤ 1 in WithZero(Multiplicative ℤ)
+    exact le_of_lt (by
+      rw [show (1 : WithZero (Multiplicative ℤ)) = ↑(Multiplicative.ofAdd (0 : ℤ)) from rfl]
+      exact WithZero.coe_lt_coe.mpr (Multiplicative.ofAdd_lt.mpr (by omega)))⟩
+
+omit [IsTotallyReal F] [IsQuaternionAlgebra F D] in
+lemma uniformizerInt_ne_zero (v : HeightOneSpectrum (𝓞 F)) :
+    uniformizerInt (F := F) v ≠ 0 := by
+  intro h
+  have := congrArg Subtype.val h
+  simp [uniformizerInt] at this
+  exact HeightOneSpectrum.adicCompletionUniformizer_ne_zero F v this
+
+set_option maxHeartbeats 800000 in
+omit [IsTotallyReal F] [IsQuaternionAlgebra F D] in
+-- The uniformizer is irreducible in the DVR O_v.
+lemma uniformizerInt_irreducible (v : HeightOneSpectrum (𝓞 F)) :
+    Irreducible (uniformizerInt (F := F) v) :=
+  (IsDiscreteValuationRing.irreducible_iff_uniformizer _).mpr
+    (adicCompletion.maximalIdeal_eq_span_uniformizer (π := uniformizerInt (F := F) v) F v
+      (adicCompletionUniformizer_spec F v))
 
 section U
 
