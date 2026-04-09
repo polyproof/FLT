@@ -314,6 +314,141 @@ theorem bijOn_unipotent_mul_diagU1_U1diagU1 :
 
 end CosetDecomposition
 
+section TCosetGoodPrime
+
+/-! ## Double coset decomposition at good primes
+
+At a good prime `v`, the level subgroup is `U0 v = GL₂(𝒪_v)` (the full maximal compact).
+The double coset `U0 · diag(α, 1) · U0` decomposes into `|𝒪_v/α𝒪_v| + 1` left cosets,
+indexed by `Option (𝒪_v / α𝒪_v)`:
+- `some t ↦ unipotent_mul_diag(t)` for each `t ∈ 𝒪_v/α𝒪_v`
+- `none ↦ diag'(α) = !![1, 0; 0, α]`
+
+This decomposition requires `α` to generate the maximal ideal (i.e., be a uniformizer).
+-/
+
+/-- The full local level subgroup for "good primes": `GL₂(𝒪_v)`. -/
+noncomputable abbrev U0 (v : HeightOneSpectrum (𝓞 F)) :
+    Subgroup (GL (Fin 2) (adicCompletion F v)) :=
+  GL2.localFullLevel v
+
+/-- The diagonal matrix element `diag(1, α) = !![1, 0; 0, α]`. This is the "flipped"
+diagonal relative to `diag(α, 1)`, used as the extra coset representative in the
+`T_v` double coset decomposition at good primes. -/
+noncomputable def diag' (α : v.adicCompletionIntegers F) (hα : α ≠ 0) :
+    (GL (Fin 2) (adicCompletion F v)) :=
+  Matrix.GeneralLinearGroup.diagonal (![1, ⟨(α : v.adicCompletion F),
+    (α : v.adicCompletion F)⁻¹, by
+      rw [mul_inv_cancel₀]
+      exact_mod_cast hα, by
+      rw [inv_mul_cancel₀]
+      exact_mod_cast hα⟩])
+
+lemma diag'_def :
+    (diag' α hα : Matrix (Fin 2) (Fin 2) (adicCompletion F v))
+    = !![1, 0; 0, ↑α] := by
+  rw [diag', Matrix.GeneralLinearGroup.diagonal]
+  ext i j; fin_cases i; all_goals fin_cases j
+  all_goals simp
+
+variable (v) in
+/-- The double coset space `U0 · diag · U0` as a set of left cosets modulo `U0`. -/
+noncomputable def U0diagU0 :
+    Set ((GL (Fin 2) (adicCompletion F v)) ⧸ (U0 v)) :=
+  (QuotientGroup.mk '' ((U0 v : Set _) * {diag α hα}))
+
+/-- The `q + 1` coset representatives for the `T_v` double coset, indexed by
+`Option (𝒪_v / α𝒪_v)`:
+- `some t ↦` the coset of `unipotent_mul_diag(t) = !![α, t; 0, 1]`
+- `none ↦` the coset of `diag'(α) = !![1, 0; 0, α]` -/
+noncomputable def T_cosets (v : HeightOneSpectrum (𝓞 F))
+    (α : v.adicCompletionIntegers F) (hα : α ≠ 0)
+    (t : Option (↥(adicCompletionIntegers F v) ⧸ (Ideal.span {α}))) :
+    ((GL (Fin 2) (adicCompletion F v)) ⧸ (U0 v)) :=
+  match t with
+  | none => QuotientGroup.mk (diag' α hα)
+  | some t => QuotientGroup.mk
+      (unipotent_mul_diag α hα (Quotient.out t : adicCompletionIntegers F v))
+
+/-- Each `T_cosets` representative is in the double coset `U0diagU0`. -/
+lemma mapsTo_T_cosets_U0diagU0 :
+    Set.MapsTo (T_cosets v α hα) ⊤ (U0diagU0 v α hα) := by
+  intro t _
+  cases t with
+  | none =>
+    -- diag' is in the double coset U0 · diag · U0.
+    -- Proof: let w = !![0, 1; 1, 0] ∈ U0 (the swap/permutation matrix).
+    -- Then w * diag ∈ U0 * {diag}, and (w * diag)⁻¹ * diag' = w ∈ U0,
+    -- so mk(w * diag) = mk(diag'), hence mk(diag') ∈ U0diagU0.
+    simp only [T_cosets]
+    sorry
+  | some t =>
+    -- unipotent_mul_diag t = unipotent(t) * diag, where unipotent(t) ∈ U0
+    -- (since GL2.unipotent_mem_U1 gives membership in U1 ⊆ U0 via .left).
+    -- So unipotent_mul_diag t ∈ U0 * {diag}, hence mk(unipotent_mul_diag t) ∈ U0diagU0.
+    sorry
+
+/-- Distinct `T_cosets` values give distinct cosets. -/
+lemma injOn_T_cosets
+    (hα_nonunit : ¬IsUnit α) :
+    Set.InjOn (T_cosets v α hα) ⊤ := by
+  intro t₁ _ t₂ _ h
+  cases t₁ with
+  | none =>
+    cases t₂ with
+    | none => rfl
+    | some t₂ =>
+      -- QuotientGroup.mk(diag') = QuotientGroup.mk(unipotent_mul_diag t₂)
+      -- means (diag')⁻¹ * unipotent_mul_diag t₂ ∈ U0
+      -- i.e. the (1,1) entry is α⁻¹ ∉ O_v since α is not a unit — contradiction.
+      sorry
+  | some t₁ =>
+    cases t₂ with
+    | none =>
+      -- Symmetric to the none/some case above.
+      sorry
+    | some t₂ =>
+      -- Same proof as injOn_unipotent_mul_diagU1 (Local.lean:242), but with U0 instead of U1.
+      -- Key steps:
+      -- 1. simp/unfold T_cosets to get h : mk(unipotent_mul_diag t₁) = mk(unipotent_mul_diag t₂)
+      -- 2. QuotientGroup.eq.mp h gives (unipotent_mul_diag t₁)⁻¹ * unipotent_mul_diag t₂ ∈ U0
+      -- 3. By unipotent_mul_diag_inv_mul_unipotent_mul_diag, this product is unipotent(α⁻¹(t₂-t₁))
+      -- 4. Membership in U0 forces α⁻¹(t₂-t₁) ∈ O_v, i.e., t₂-t₁ ∈ αO_v, i.e., t₁ = t₂ in O_v/αO_v
+      sorry
+
+/-- Every coset in `U0diagU0` is represented by some `T_cosets` value.
+This is the hard part: uses a case split on whether the (1,1) entry of `x ∈ U0`
+is a unit (reducing to the `unipotent_mul_diag` case) or in the maximal ideal
+(giving the `diag'` case). -/
+lemma surjOn_T_cosets_U0diagU0
+    (hα_gen : Ideal.span {α} = IsLocalRing.maximalIdeal (adicCompletionIntegers F v)) :
+    Set.SurjOn (T_cosets v α hα) ⊤ (U0diagU0 v α hα) := by
+  /- Proof outline:
+  Given x ∈ U0 = GL₂(𝒪_v), let a, b, c, d be the matrix entries.
+  Case split on whether d is a unit in 𝒪_v:
+  - Case 1 (d ∈ 𝒪_v×): The coset equals unipotent_mul_diag(⅟d * b).
+    Same argument as surjOn_unipotent_mul_diagU1_U1diagU1: conjugation by diag
+    sends unipotent(⅟d * b)⁻¹ * x into U0 because entry (0,1) ∈ Ideal.span {α}.
+  - Case 2 (d ∈ maximal ideal): The coset equals diag'.
+    Since α generates maximalIdeal (hα_gen), d ∈ α𝒪_v, so α⁻¹d ∈ 𝒪_v.
+    The matrix diag'⁻¹ * x * diag = !![aα, b; c, α⁻¹d] has all entries in 𝒪_v
+    and det = det(x) ∈ 𝒪_v×, so it's in U0.
+  -/
+  sorry
+
+/-- The double coset `U0 · diag(α, 1) · U0` decomposes as a disjoint union of `q + 1`
+left cosets, indexed by `Option (𝒪_v / α𝒪_v)`. This is the key decomposition used
+for the `T_v` Hecke operator at good primes. -/
+theorem bijOn_T_cosets_U0diagU0
+    (hα_nonunit : ¬IsUnit α)
+    (hα_gen : Ideal.span {α} = IsLocalRing.maximalIdeal (adicCompletionIntegers F v)) :
+    Set.BijOn (T_cosets v α hα) ⊤ (U0diagU0 v α hα) :=
+  ⟨mapsTo_T_cosets_U0diagU0 α hα,
+    injOn_T_cosets α hα hα_nonunit,
+    surjOn_T_cosets_U0diagU0 α hα hα_gen⟩
+
+end TCosetGoodPrime
+
 end Local
 
 end TotallyDefiniteQuaternionAlgebra.WeightTwoAutomorphicForm.HeckeOperator
