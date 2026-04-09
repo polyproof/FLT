@@ -337,9 +337,16 @@ lemma conjBy_diag_mem_U0_of_apply_zero_one_mem_ideal
       Fin.mk_one, Fin.isValue, Matrix.cons_val_one, Matrix.cons_val_fin_one]
     · exact GL2.v_le_one_of_mem_localFullLevel _ hx 0 0
     · -- (0,1): v(α⁻¹ * b') ≤ 1 since b' = α*q gives α⁻¹*b' = q ∈ O_v.
-      sorry
+      have : (↑α : adicCompletion F v)⁻¹ * ↑b' = ↑q := by
+        have hbq : (b' : adicCompletion F v) = (α : adicCompletion F v) * (q : adicCompletion F v) := by
+          have := congrArg (Subtype.val (p := fun x => x ∈ adicCompletionIntegers F v)) hq
+          push_cast at this; rw [show (b' : adicCompletion F v) = x.val 0 1 from rfl, ← this]; ring
+        rw [hbq]
+        rw [← mul_assoc, inv_mul_cancel₀ ((Subtype.coe_ne_coe).mpr hα), one_mul]
+      rw_mod_cast [this]
+      exact q.2
     · -- (1,0): v(c' * α) ≤ 1 since both c', α ∈ O_v.
-      sorry
+      exact_mod_cast (c' * α).2
     exact GL2.v_le_one_of_mem_localFullLevel _ hx 1 1
   rw [Matrix.det_fin_two_of]; ring_nf
   rw [mul_inv_cancel₀ ((Subtype.coe_ne_coe).mpr hα), one_mul]
