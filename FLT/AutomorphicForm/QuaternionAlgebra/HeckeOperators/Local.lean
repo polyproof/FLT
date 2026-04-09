@@ -314,6 +314,38 @@ theorem bijOn_unipotent_mul_diagU1_U1diagU1 :
 
 end CosetDecomposition
 
+/-- Conjugation by `diag` preserves `U0 = localFullLevel` when the (0,1) entry is in `span{α}`.
+This is the U0 analog of `conjBy_diag_mem_U1_iff_apply_zero_one_mem_ideal` (which requires U1). -/
+lemma conjBy_diag_mem_U0_of_apply_zero_one_mem_ideal
+    {x : GL (Fin 2) (adicCompletion F v)}
+    (hx : x ∈ GL2.localFullLevel v)
+    (h01 : ⟨(x 0 1), GL2.v_le_one_of_mem_localFullLevel _ hx 0 1⟩ ∈ Ideal.span {α}) :
+    (diag α hα)⁻¹ * x * diag α hα ∈ GL2.localFullLevel v := by
+  let a' : adicCompletionIntegers F v := ⟨_, GL2.v_le_one_of_mem_localFullLevel _ hx 0 0⟩
+  let b' : adicCompletionIntegers F v := ⟨_, GL2.v_le_one_of_mem_localFullLevel _ hx 0 1⟩
+  let c' : adicCompletionIntegers F v := ⟨_, GL2.v_le_one_of_mem_localFullLevel _ hx 1 0⟩
+  let d' : adicCompletionIntegers F v := ⟨_, GL2.v_le_one_of_mem_localFullLevel _ hx 1 1⟩
+  have hx₁' : x = !![(a' : adicCompletion F v), b'; c', d'] :=
+    (Matrix.etaExpand_eq (x : Matrix (Fin 2) (Fin 2) (adicCompletion F v))).symm
+  obtain ⟨q, hq⟩ := Ideal.mem_span_singleton'.mp h01
+  apply GL2.mem_localFullLevel_iff_v_le_one_and_v_det_eq_one.mpr
+  push_cast [hx₁']; rw_mod_cast [conjBy_diag]
+  constructor
+  · intro i j; fin_cases i; all_goals fin_cases j
+    all_goals simp only [Fin.zero_eta, Fin.isValue, Matrix.of_apply, Matrix.cons_val',
+      Matrix.cons_val_zero, Matrix.cons_val_fin_one,
+      Fin.mk_one, Fin.isValue, Matrix.cons_val_one, Matrix.cons_val_fin_one]
+    · exact GL2.v_le_one_of_mem_localFullLevel _ hx 0 0
+    · -- (0,1): v(α⁻¹ * b') ≤ 1 since b' = α*q gives α⁻¹*b' = q ∈ O_v.
+      sorry
+    · -- (1,0): v(c' * α) ≤ 1 since both c', α ∈ O_v.
+      sorry
+    exact GL2.v_le_one_of_mem_localFullLevel _ hx 1 1
+  rw [Matrix.det_fin_two_of]; ring_nf
+  rw [mul_inv_cancel₀ ((Subtype.coe_ne_coe).mpr hα), one_mul]
+  rw [← Matrix.det_fin_two]
+  exact GL2.v_det_val_mem_localFullLevel_eq_one hx
+
 section TCosetFullLevel
 
 /-! ### Double coset decomposition for `GL₂(O_v) · diag(α,1) · GL₂(O_v)`
@@ -553,12 +585,17 @@ lemma surjOn_T_cosets_U0diagU0
           simp only [Ideal.Quotient.mk_out]; rfl
         obtain ⟨q, hq⟩ := Ideal.mem_span_singleton'.mp (Ideal.Quotient.eq.mp t_def)
         use -d * q; rw [mul_assoc, hq]; ring_nf; simp
-      -- Membership in U0: diag⁻¹ * (unipotent(-out_t) * x) * diag ∈ localFullLevel.
-      -- Uses conjBy_diag + entry-level O_v membership.
-      -- Since the approach via push_cast/rw_mod_cast is blocked on automation,
-      -- and the mathematical argument is clear (entries + det), we sorry this step.
-      -- TODO: Define conjBy_diag_mem_U0 helper or use manual entry extraction.
-      sorry
+      -- Use the helper: diag⁻¹ * (unipotent(-out_t) * x) * diag ∈ U0
+      -- when the (0,1) entry of (unipotent(-out_t) * x) is in Ideal.span {α}.
+      refine conjBy_diag_mem_U0_of_apply_zero_one_mem_ideal (α := α) (hα := hα)
+        (Subgroup.mul_mem _ (Subgroup.inv_mem _ ((unipotent_mem_U1 _).1)) hx) ?_
+      -- (0,1) entry of (unipotent(-out_t) * x) is b + (-out_t)*d ∈ Ideal.span {α}
+      simp only [Fin.isValue, Units.val_mul, Matrix.coe_units_inv, unipotent_def, Matrix.inv_def,
+        Matrix.det_fin_two_of, mul_one, mul_zero, sub_zero, Ring.inverse_one,
+        Matrix.adjugate_fin_two_of, neg_zero, one_smul, hx₁, Matrix.mul_apply, Matrix.of_apply,
+        Matrix.cons_val', Matrix.cons_val_fin_one, Matrix.cons_val_zero, Matrix.cons_val_one,
+        Fin.sum_univ_two, one_mul]
+      exact_mod_cast ht
   · -- Case 2: d is not a unit. Since α is irreducible, α generates maximalIdeal.
     -- Every non-unit in O_v is in maximalIdeal = Ideal.span {α}, so α | d.
     have hd_mem : d ∈ Ideal.span {α} := by
