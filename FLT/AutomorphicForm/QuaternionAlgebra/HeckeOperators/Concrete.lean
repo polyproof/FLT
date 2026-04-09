@@ -429,13 +429,52 @@ The proof mirrors bijOn_unipotent_mul_diagU1_U1diagU1 but uses T_cosets_image
 theorem bijOn_T_cosets_U1diagU1
     (hα_irr : Irreducible α) :
     (T_cosets_image r α hα).BijOn QuotientGroup.mk (U1diagU1 r S α hα) := by
-  -- This theorem globalizes Local.bijOn_T_cosets_U0diagU0 to the adelic setting.
-  -- The proof structure mirrors bijOn_unipotent_mul_diagU1_U1diagU1 but
-  -- uses T_cosets_image = unipotent_mul_diag_image ∪ {diag'} and requires
-  -- v ∉ S (so U1 at v is the full GL₂(O_v)).
-  -- The key difference: the local bijOn_T_cosets_U0diagU0 gives q+1 cosets
-  -- instead of q, with the extra coset being diag'.
-  sorry
+  -- Globalizes Local.bijOn_T_cosets_U0diagU0 to the adelic setting.
+  -- Structure mirrors bijOn_unipotent_mul_diagU1_U1diagU1 but with T_cosets_image
+  -- (= unipotent_mul_diag_image ∪ {diag'}) and requires v ∉ S.
+  refine ⟨?_, ?_, ?_⟩
+  · -- MapsTo: each element of T_cosets_image can be written as u * diag for some u ∈ U1.
+    rintro _ (⟨i, _, rfl⟩ | rfl)
+    · -- unipotent_mul_diag = u_glob * diag where u_glob is a v-supported unipotent ∈ U1.
+      -- Same as the MapsTo proof in bijOn_unipotent_mul_diagU1_U1diagU1.
+      set u_glob : (D ⊗[F] (FiniteAdeleRing (𝓞 F) F))ˣ :=
+        Units.mapEquiv r.symm.toMulEquiv
+          (FiniteAdeleRing.GL2.restrictedProduct.symm
+            (RestrictedProduct.mulSingle _ v
+              (Matrix.GeneralLinearGroup.GL2.unipotent
+                ((Quotient.out i : adicCompletionIntegers F v) :
+                  adicCompletion F v)))) with hu_glob_def
+      have hu_glob_mem : u_glob ∈ U1 r S := by
+        refine Subgroup.mem_map.mpr ⟨_, ?_, rfl⟩
+        refine ⟨fun w => ?_, fun w _ => ?_⟩
+        · by_cases hwv : w = v
+          · subst hwv
+            rw [FiniteAdeleRing.GL2.toAdicCompletion_restrictedProduct_symm_mulSingle_same w _]
+            exact (Local.GL2.unipotent_mem_U1 (v := w) (Quotient.out i)).1
+          · rw [FiniteAdeleRing.GL2.toAdicCompletion_restrictedProduct_symm_mulSingle_ne hwv _]
+            exact (GL2.localFullLevel w).one_mem
+        · by_cases hwv : w = v
+          · subst hwv
+            rw [FiniteAdeleRing.GL2.toAdicCompletion_restrictedProduct_symm_mulSingle_same w _]
+            exact Local.GL2.unipotent_mem_U1 (v := w) (Quotient.out i)
+          · rw [FiniteAdeleRing.GL2.toAdicCompletion_restrictedProduct_symm_mulSingle_ne hwv _]
+            exact (GL2.localTameLevel w).one_mem
+      have h_eq : unipotent_mul_diag r α hα i = u_glob * diag r α hα := by
+        rw [hu_glob_def]
+        unfold unipotent_mul_diag diag
+        rw [← map_mul, ← map_mul, ← RestrictedProduct.mulSingle_mul]
+        rfl
+      refine ⟨u_glob * diag r α hα, Set.mul_mem_mul hu_glob_mem rfl, ?_⟩
+      rw [← h_eq]
+    · -- diag': write diag' = W * diag * W⁻¹ ≡ W * diag (mod U1 on right)
+      -- where W = swap matrix ∈ U1
+      sorry
+  · -- InjOn: distinct T_cosets_image elements give distinct cosets.
+    -- Follows from local injOn via the restricted-product structure.
+    sorry
+  · -- SurjOn: every coset in U1diagU1 is represented.
+    -- Uses isProductAt_transported + local surjOn (T_cosets decomposition).
+    sorry
 
 omit [IsTotallyReal F] in
 lemma quot_top_finite (r : Rigidification F D) (α : v.adicCompletionIntegers F) (hα : α ≠ 0) :
