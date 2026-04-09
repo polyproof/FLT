@@ -554,12 +554,28 @@ lemma surjOn_T_cosets_U0diagU0
     constructor
     · trivial
     · simp only [T_cosets]
-      apply QuotientGroup.eq.mpr
-      -- Need: (diag')⁻¹ * (x * diag) ∈ U0 = localFullLevel v
-      -- Rewrite x = !![a,b;c,d] and use conjBy_diag'_diag.
-      -- (diag')⁻¹ * x * diag = !![a*α, b; c, d*α⁻¹] by conjBy_diag'_diag.
-      -- Since d = α*d', d*α⁻¹ = d'. All entries in O_v, det = det(x) ∈ O_v^×.
-      sorry
+      symm; apply QuotientGroup.eq.mpr
+      -- Goal: (x * diag)⁻¹ * diag' ∈ U0 = localFullLevel v
+      -- Equivalently: all entries in O_v and unit determinant.
+      apply GL2.mem_localFullLevel_iff_v_le_one_and_v_det_eq_one.mpr
+      constructor
+      · -- All entries have v-value ≤ 1.
+        intro i j
+        simp only [Units.val_mul, Matrix.coe_units_inv, Matrix.mul_apply,
+          Fin.sum_univ_two, diag'_inv_val, diag_def]
+        push_cast [hx₁]
+        simp only [Matrix.inv_def, Matrix.det_fin_two_of, Matrix.adjugate_fin_two_of,
+          Ring.inverse_eq_inv', neg_zero, Matrix.smul_of, Matrix.smul_cons, smul_eq_mul,
+          Matrix.smul_empty, Matrix.of_apply, Matrix.cons_val', Matrix.cons_val_zero,
+          Matrix.cons_val_one, Matrix.cons_val_fin_one, zero_mul, one_mul, mul_one,
+          mul_zero, add_zero, zero_add, neg_mul]
+        have hα_ne : (α : v.adicCompletion F) ≠ 0 := (Subtype.coe_ne_coe).mpr hα
+        fin_cases i <;> fin_cases j <;> simp <;> try field_simp
+        -- Entry (0,0): involves a * α * det(x)⁻¹ — in O_v since a, α ∈ O_v and det is a unit
+        all_goals sorry
+      · -- det of product = det(x * diag) / det(diag') = det(x) * det(diag) / det(diag')
+        -- = det(x) * α / α = det(x). And v(det(x)) = 1 since x ∈ U0.
+        sorry
 
 variable (v) in
 /-- The double coset `U0 · diag · U0 / U0` is in bijection with `Option (O_v / αO_v)`.
