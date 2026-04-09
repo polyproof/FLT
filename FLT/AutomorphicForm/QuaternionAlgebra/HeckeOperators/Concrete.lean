@@ -616,8 +616,33 @@ theorem bijOn_T_cosets_U1diagU1
       ⟨_, Set.mul_mem_mul hg_loc_full rfl, rfl⟩
     obtain ⟨idx, _, hidx⟩ :=
       Local.surjOn_T_cosets α hα hα_irr hlocal_target
-    -- Case split on the index
-    sorry
+    -- Case split on the local index: some t (unipotent case) or none (diag' case).
+    -- In both cases, construct the global representative and verify quotient equality.
+    -- The verification follows the same W-construction pattern as the existing SurjOn
+    -- (lines 365-413): build W ∈ GL2.TameLevel S such that Units.map r.symm W equals
+    -- the global ratio, checking membership at each place w via by_cases on w = v.
+    cases idx with
+    | some t =>
+      -- Representative is unipotent_mul_diag t.
+      -- Local ratio: (Local.unipotent_mul_diag t)⁻¹ * (g_loc * Local.diag) ∈ U0 v
+      have hlocal_ratio :
+          (Local.GL2.unipotent_mul_diag α hα
+              (Quotient.out t : adicCompletionIntegers F v))⁻¹ *
+            (g_loc * Local.GL2.diag α hα) ∈ Local.U0 v :=
+        QuotientGroup.eq.mp hidx
+      -- Global representative and verification (same as existing SurjOn)
+      refine ⟨unipotent_mul_diag r α hα t,
+        Or.inl ⟨t, trivial, rfl⟩, ?_⟩
+      sorry
+    | none =>
+      -- Representative is diag'.
+      -- Local ratio: (Local.diag')⁻¹ * (g_loc * Local.diag) ∈ U0 v
+      have hlocal_ratio :
+          (Local.diag' α hα)⁻¹ *
+            (g_loc * Local.GL2.diag α hα) ∈ Local.U0 v :=
+        QuotientGroup.eq.mp hidx
+      refine ⟨diag' r α hα, Or.inr rfl, ?_⟩
+      sorry
 
 omit [IsTotallyReal F] in
 lemma quot_top_finite (r : Rigidification F D) (α : v.adicCompletionIntegers F) (hα : α ≠ 0) :
