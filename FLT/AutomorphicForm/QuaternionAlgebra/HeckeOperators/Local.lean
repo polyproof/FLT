@@ -446,8 +446,24 @@ lemma T_cosets_none_ne_some (hα_nonunit : ¬IsUnit α)
   -- h : mk(diag') = mk(unipotent_mul_diag(Quotient.out t))
   -- So (diag')⁻¹ * unipotent_mul_diag(Quotient.out t) ∈ U0
   have hmem := QuotientGroup.eq.mp h
-  -- The (1,1) entry of (diag')⁻¹ * unipotent_mul_diag(t) is α⁻¹.
-  -- Since α is not a unit, α⁻¹ ∉ O_v, contradicting membership in localFullLevel.
+  -- Extract v-value bound on (1,1) entry from membership in U0.
+  have h11 := GL2.v_le_one_of_mem_localFullLevel _ hmem 1 1
+  -- Compute the (1,1) entry via matrix multiplication.
+  -- (diag')⁻¹ * unipotent_mul_diag(t) = (diag')⁻¹ * unipotent(t) * diag
+  -- By conjBy_diag'_diag: entry (1,1) = 1 * α⁻¹ = α⁻¹.
+  set_option maxHeartbeats 1600000 in
+  simp only [Units.val_mul, Matrix.coe_units_inv, Matrix.mul_apply, Fin.sum_univ_two,
+    unipotent_mul_diag, unipotent, Matrix.unitOfDetInvertible, val_unitOfInvertible,
+    diag', diag, Matrix.GeneralLinearGroup.diagonal,
+    Matrix.inv_def, Matrix.det_fin_two_of, mul_one, mul_zero, sub_zero, zero_sub,
+    Ring.inverse_eq_inv', Matrix.adjugate_fin_two_of, neg_zero, neg_neg, neg_mul,
+    Matrix.smul_of, Matrix.smul_cons, smul_eq_mul, Matrix.smul_empty,
+    Matrix.of_apply, Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+    Matrix.cons_val_fin_one, zero_mul, one_mul, mul_one, mul_zero,
+    add_zero, zero_add] at h11
+  -- h11 should reduce to v(α⁻¹) ≤ 1 after fully unfolding the matrix inverse.
+  -- The simp above partially reduces but gets stuck at det⁻¹ • adjugate.
+  -- Needs: Matrix.diagonal_det, Matrix.adjugate_diagonal for full reduction.
   sorry
 
 /-- Distinct `T_cosets` entries give distinct cosets. -/
