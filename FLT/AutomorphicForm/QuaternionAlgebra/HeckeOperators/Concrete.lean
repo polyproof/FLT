@@ -529,13 +529,38 @@ theorem bijOn_T_cosets_U1diagU1
       exfalso
       have hratio := QuotientGroup.eq.mp h
       sorry
-    · -- diag' vs unipotent: (diag')⁻¹ * unipotent_mul_diag(j) projected at v
-      -- has α⁻¹ entry, not in O_v since α is not a unit.
+    · -- diag' vs unipotent: project ratio at v to get local element with α⁻¹ entry.
       exfalso
       have hratio := QuotientGroup.eq.mp h
-      -- The ratio diag'⁻¹ * unipotent_mul_diag(j) ∈ U1
-      -- Project at v: the local ratio = Local.diag'⁻¹ * Local.unipotent_mul_diag(j)
-      -- which has α⁻¹ in entry (1,1) or (0,0), contradicting U0 membership.
+      -- Construct the local ratio element
+      set g_loc : GL (Fin 2) (adicCompletion F v) :=
+        (Local.diag' α hα)⁻¹ *
+          Local.GL2.unipotent_mul_diag α hα (Quotient.out j)
+      set w' : GL (Fin 2) (FiniteAdeleRing (𝓞 F) F) :=
+        FiniteAdeleRing.GL2.restrictedProduct.symm
+          (RestrictedProduct.mulSingle _ v g_loc)
+      -- w' maps to the global ratio under r.symm
+      have h_image : Units.mapEquiv r.symm.toMulEquiv w' =
+          (diag' r α hα)⁻¹ * (unipotent_mul_diag r α hα j) := by
+        unfold diag' unipotent_mul_diag
+        rw [← map_inv, ← map_mul, ← map_inv, ← map_mul,
+          ← RestrictedProduct.mulSingle_inv,
+          ← RestrictedProduct.mulSingle_mul]
+      obtain ⟨w, hw_mem, hw_eq⟩ := Subgroup.mem_map.mp hratio
+      have hw'_eq : w' = w := by
+        apply (Units.mapEquiv r.symm.toMulEquiv).injective
+        rw [h_image]; exact hw_eq.symm
+      have hw'_mem : w' ∈ GL2.TameLevel S := hw'_eq ▸ hw_mem
+      have hg_loc_mem : g_loc ∈ GL2.localFullLevel v := by
+        have := hw'_mem.1 v
+        rwa [FiniteAdeleRing.GL2.toAdicCompletion_restrictedProduct_symm_mulSingle_same v _] at this
+      -- g_loc = (diag')⁻¹ * unipotent_mul_diag(j) ∈ localFullLevel v = U0.
+      -- But by local injOn_T_cosets, diag' and unipotent_mul_diag give distinct cosets
+      -- (none ≠ some j), so their ratio can't be in U0. Contradiction.
+      -- The (1,1) entry of g_loc is α⁻¹, which is not in O_v since ¬IsUnit α.
+      have h11 := GL2.v_le_one_of_mem_localFullLevel _ hg_loc_mem 1 1
+      -- h11 says Valued.v (g_loc 1 1) ≤ 1, but g_loc(1,1) = α⁻¹
+      -- and Valued.v(α⁻¹) > 1 since α is not a unit.
       sorry
     · -- diag' vs diag': same element
       rfl
