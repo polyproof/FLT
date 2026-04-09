@@ -8,6 +8,7 @@ import FLT.AutomorphicForm.QuaternionAlgebra.HeckeOperators.Abstract -- abstract
 import FLT.AutomorphicForm.QuaternionAlgebra.Defs -- definitions of automorphic forms
 import FLT.QuaternionAlgebra.NumberField -- rigidifications of quat algs
 import Mathlib.NumberTheory.NumberField.InfinitePlace.TotallyRealComplex
+import FLT.DedekindDomain.AdicValuation
 import Mathlib.RingTheory.DedekindDomain.FiniteAdeleRing
 import FLT.DedekindDomain.FiniteAdeleRing.LocalUnits -- for (π 0; 0 1)
 import FLT.Mathlib.Topology.Algebra.RestrictedProduct.TopologicalSpace
@@ -159,6 +160,34 @@ noncomputable def T (v : HeightOneSpectrum (𝓞 F)) :
     ![FiniteAdeleRing.localUniformiserUnit F v, 1])
   AbstractHeckeOperator.HeckeOperator (R := R) g (U1 r S) (U1 r S)
   (QuotientGroup.mk_image_finite_of_compact_of_open (U1_compact r S) (U1_open r S))
+
+/-- The local uniformizer at `v` as an element of the valuation subring `O_v`. -/
+noncomputable def uniformizerInt (v : HeightOneSpectrum (𝓞 F)) :
+    v.adicCompletionIntegers F :=
+  ⟨v.adicCompletionUniformizer F, by
+    rw [HeightOneSpectrum.mem_adicCompletionIntegers,
+      HeightOneSpectrum.adicCompletionUniformizer_spec]
+    -- ofAdd(-1) ≤ 1 in WithZero(Multiplicative ℤ)
+    exact le_of_lt (by
+      rw [show (1 : WithZero (Multiplicative ℤ)) = ↑(Multiplicative.ofAdd (0 : ℤ)) from rfl]
+      exact WithZero.coe_lt_coe.mpr (Multiplicative.ofAdd_lt.mpr (by omega)))⟩
+
+omit [IsTotallyReal F] [IsQuaternionAlgebra F D] in
+lemma uniformizerInt_ne_zero (v : HeightOneSpectrum (𝓞 F)) :
+    uniformizerInt (F := F) v ≠ 0 := by
+  intro h
+  have := congrArg Subtype.val h
+  simp [uniformizerInt] at this
+  exact HeightOneSpectrum.adicCompletionUniformizer_ne_zero F v this
+
+set_option maxHeartbeats 800000 in
+omit [IsTotallyReal F] [IsQuaternionAlgebra F D] in
+-- The uniformizer is irreducible in the DVR O_v.
+lemma uniformizerInt_irreducible (v : HeightOneSpectrum (𝓞 F)) :
+    Irreducible (uniformizerInt (F := F) v) :=
+  (IsDiscreteValuationRing.irreducible_iff_uniformizer _).mpr
+    (adicCompletion.maximalIdeal_eq_span_uniformizer (π := uniformizerInt (F := F) v) F v
+      (adicCompletionUniformizer_spec F v))
 
 section U
 
@@ -1138,6 +1167,27 @@ namespace HeckeOperator
 
 set_option maxSynthPendingDepth 1 in
 open scoped TensorProduct.RightActions in
+/-- The T_v Hecke operator's underlying group element equals `diag r α hα`
+when α is the local uniformizer at v. -/
+lemma T_eq_diag (v : HeightOneSpectrum (𝓞 F))
+    {α : v.adicCompletionIntegers F} (hα : α ≠ 0)
+    (h_eq : (α : v.adicCompletion F) = v.adicCompletionUniformizer F) :
+    T r R v = AbstractHeckeOperator.HeckeOperator (R := R) (diag r α hα) (U1 r S) (U1 r S)
+      (QuotientGroup.mk_image_finite_of_compact_of_open (U1_compact r S) (U1_open r S)) := by
+  unfold T
+  congr 1
+  -- Show two Units in (D ⊗ 𝔸_F^∞)ˣ are equal by showing their values are equal.
+  -- Both go through r.symm applied to a GL₂(𝔸) element.
+  -- Show they produce the same D ⊗ 𝔸 element.
+  unfold diag
+  -- Apply Units.ext to reduce to value equality.
+  ext : 1
+  -- Show the underlying (D ⊗ 𝔸) matrix values are equal.
+  -- Both are r.symm applied to something, so use r.symm injectivity.
+  sorry
+
+set_option maxSynthPendingDepth 1 in
+open scoped TensorProduct.RightActions in
 omit [IsTotallyReal F] [IsQuaternionAlgebra F D] in
 /-- The two diagonal group elements `diag(ϖ_v, 1)` and `diag(ϖ_w, 1)` (pulled back through
 the rigidification `r`) commute unconditionally: diagonal matrices over a commutative ring
@@ -1184,12 +1234,17 @@ noncomputable instance instCommRing :
     · -- v = w: T_v = T_w, so the product commutes with itself trivially.
       subst hvw
       rfl
-    · -- v ≠ w: disjoint support via AbstractHeckeOperator.comm.
-      unfold HeckeOperator.T
-      apply AbstractHeckeOperator.comm (R := R)
-      -- Supply T_cosets_image + bijOn for both T_v and T_w, + commutativity.
-      -- The uniformizer at each place is irreducible.
-      -- Need: Irreducible (uniformizer) + correct type for T_cosets_image/bijOn
+    · -- v ≠ w: use T_eq_diag to rewrite, then AbstractHeckeOperator.comm.
+      -- Get local uniformizers at v and w.
+      have ⟨αv, hαv_ne, hαv_irr, hαv_eq⟩ :
+          ∃ (α : v.adicCompletionIntegers F) (hα : α ≠ 0),
+            Irreducible α ∧
+            (α : v.adicCompletion F) = v.adicCompletionUniformizer F := sorry
+      have ⟨αw, hαw_ne, hαw_irr, hαw_eq⟩ :
+          ∃ (α : w.adicCompletionIntegers F) (hα : α ≠ 0),
+            Irreducible α ∧
+            (α : w.adicCompletion F) = w.adicCompletionUniformizer F := sorry
+      -- After T_eq_diag rewrite, apply AbstractHeckeOperator.comm
       sorry
   · -- (T_v, U_{w,β}): good prime T_v commutes with bad prime U_{w,β}.
     -- Since v ∉ S and w ∈ S, we have v ≠ w.
