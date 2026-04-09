@@ -695,8 +695,25 @@ lemma T_cosets_image_commute_of_ne
     (b : (D ⊗[F] (FiniteAdeleRing (𝓞 F) F))ˣ) (hb : b ∈ T_cosets_image r β hβ) :
     a * b = b * a := by
   -- Every element of T_cosets_image is a mulSingle at v (resp w).
-  -- mulSingle at distinct places commute.
-  sorry
+  -- mulSingle at distinct places commute via RestrictedProduct.mulSingle_commute.
+  rcases ha with ⟨i, _, rfl⟩ | rfl <;> rcases hb with ⟨j, _, rfl⟩ | rfl
+  · -- unipotent_mul_diag at v, unipotent_mul_diag at w
+    exact (unipotent_mul_diag_commute_of_ne r hvw hα hβ i j).eq
+  · -- unipotent_mul_diag at v, diag' at w
+    unfold unipotent_mul_diag diag'
+    exact ((RestrictedProduct.mulSingle_commute _ hvw _ _).map
+      (FiniteAdeleRing.GL2.restrictedProduct (F := F)).symm.toMonoidHom |>.map
+      (Units.mapEquiv r.symm.toMulEquiv).toMonoidHom).eq
+  · -- diag' at v, unipotent_mul_diag at w
+    unfold diag' unipotent_mul_diag
+    exact ((RestrictedProduct.mulSingle_commute _ hvw _ _).map
+      (FiniteAdeleRing.GL2.restrictedProduct (F := F)).symm.toMonoidHom |>.map
+      (Units.mapEquiv r.symm.toMulEquiv).toMonoidHom).eq
+  · -- diag' at v, diag' at w
+    unfold diag'
+    exact ((RestrictedProduct.mulSingle_commute _ hvw _ _).map
+      (FiniteAdeleRing.GL2.restrictedProduct (F := F)).symm.toMonoidHom |>.map
+      (Units.mapEquiv r.symm.toMulEquiv).toMonoidHom).eq
 
 omit [IsTotallyReal F] in
 lemma U_comm {v : HeightOneSpectrum (𝓞 F)} (hv : v ∈ S)
