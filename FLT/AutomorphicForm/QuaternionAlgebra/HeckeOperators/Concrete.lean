@@ -8,6 +8,7 @@ import FLT.AutomorphicForm.QuaternionAlgebra.HeckeOperators.Abstract -- abstract
 import FLT.AutomorphicForm.QuaternionAlgebra.Defs -- definitions of automorphic forms
 import FLT.QuaternionAlgebra.NumberField -- rigidifications of quat algs
 import Mathlib.NumberTheory.NumberField.InfinitePlace.TotallyRealComplex
+import FLT.DedekindDomain.AdicValuation
 import Mathlib.RingTheory.DedekindDomain.FiniteAdeleRing
 import FLT.DedekindDomain.FiniteAdeleRing.LocalUnits -- for (π 0; 0 1)
 import FLT.Mathlib.Topology.Algebra.RestrictedProduct.TopologicalSpace
@@ -178,9 +179,13 @@ lemma uniformizerInt_ne_zero (v : HeightOneSpectrum (𝓞 F)) :
   simp [uniformizerInt] at this
   exact HeightOneSpectrum.adicCompletionUniformizer_ne_zero F v this
 
+set_option maxHeartbeats 800000 in
+-- The uniformizer is irreducible in the DVR O_v.
 lemma uniformizerInt_irreducible (v : HeightOneSpectrum (𝓞 F)) :
-    Irreducible (uniformizerInt (F := F) v) := by
-  sorry
+    Irreducible (uniformizerInt (F := F) v) :=
+  (IsDiscreteValuationRing.irreducible_iff_uniformizer _).mpr
+    (adicCompletion.maximalIdeal_eq_span_uniformizer (π := uniformizerInt (F := F) v) F v
+      (adicCompletionUniformizer_spec F v))
 
 section U
 
