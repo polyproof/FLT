@@ -420,6 +420,8 @@ lemma unipotent_mul_diag_image_finite :
   unfold U1diagU1
   exact (QuotientGroup.mk_image_finite_of_compact_of_open (U1_compact r {v}) (U1_open r {v}))
 
+-- Increased heartbeats for restricted-product + rigidification pipeline unfolding
+set_option maxHeartbeats 1600000 in
 omit [IsTotallyReal F] [IsQuaternionAlgebra F D] in
 /-- The T_cosets_image is a set of coset representatives for the double coset
 `U1 · diag(α,1) · U1` when the local version has a bijOn at each place.
@@ -471,10 +473,58 @@ theorem bijOn_T_cosets_U1diagU1
       sorry
   · -- InjOn: distinct T_cosets_image elements give distinct cosets.
     rintro _ (⟨i, _, rfl⟩ | rfl) _ (⟨j, _, rfl⟩ | rfl) h
-    · -- unipotent/unipotent: mk(unipotent_mul_diag i) = mk(unipotent_mul_diag j)
-      -- means the ratio is in U1. Project at v to get local ratio in U0.
-      -- Local injOn gives i = j.
-      sorry
+    · -- unipotent/unipotent: adapted from existing InjOn (lines 273-338)
+      -- mk(unipotent_mul_diag i) = mk(unipotent_mul_diag j)
+      -- → ratio in U1 → project at v → local entry check → i = j
+      refine congrArg (unipotent_mul_diag r α hα) ?_
+      have hratio : (unipotent_mul_diag r α hα i)⁻¹ *
+          (unipotent_mul_diag r α hα j) ∈ U1 r S :=
+        QuotientGroup.eq.mp h
+      set t_i := Quotient.out i
+      set t_j := Quotient.out j
+      set g_loc : GL (Fin 2) (adicCompletion F v) :=
+        (Local.GL2.unipotent_mul_diag α hα t_i)⁻¹ *
+          Local.GL2.unipotent_mul_diag α hα t_j with hg_loc_def
+      set w' : GL (Fin 2) (FiniteAdeleRing (𝓞 F) F) :=
+        FiniteAdeleRing.GL2.restrictedProduct.symm
+          (RestrictedProduct.mulSingle _ v g_loc)
+      have h_image : Units.mapEquiv r.symm.toMulEquiv w' =
+          (unipotent_mul_diag r α hα i)⁻¹ *
+            (unipotent_mul_diag r α hα j) := by
+        unfold unipotent_mul_diag
+        rw [← map_inv, ← map_mul, ← map_inv, ← map_mul,
+          ← RestrictedProduct.mulSingle_inv,
+          ← RestrictedProduct.mulSingle_mul]
+      obtain ⟨w, hw_mem, hw_eq⟩ := Subgroup.mem_map.mp hratio
+      have hw'_eq : w' = w := by
+        apply (Units.mapEquiv r.symm.toMulEquiv).injective
+        rw [h_image]; exact hw_eq.symm
+      have hw'_mem : w' ∈ GL2.TameLevel S := hw'_eq ▸ hw_mem
+      have hg_loc_mem : g_loc ∈ GL2.localFullLevel v := by
+        have := hw'_mem.1 v
+        rwa [FiniteAdeleRing.GL2.toAdicCompletion_restrictedProduct_symm_mulSingle_same v g_loc] at this
+      have h01_int := GL2.v_le_one_of_mem_localFullLevel _ hg_loc_mem 0 1
+      have hg_loc_val : g_loc =
+          Matrix.GeneralLinearGroup.GL2.unipotent
+            ((α : v.adicCompletion F)⁻¹ *
+              ((t_j : adicCompletion F v) + -(t_i : adicCompletion F v))) :=
+        Local.GL2.unipotent_mul_diag_inv_mul_unipotent_mul_diag α hα t_i t_j
+      have h01_eq : ((g_loc : GL (Fin 2) _) 0 1) =
+          (α : v.adicCompletion F)⁻¹ *
+            ((t_j : adicCompletion F v) + -(t_i : adicCompletion F v)) := by
+        rw [hg_loc_val]
+        simp [Matrix.GeneralLinearGroup.GL2.unipotent, Matrix.unitOfDetInvertible]
+      rw [h01_eq] at h01_int
+      change i = j
+      rw [← (QuotientAddGroup.out_eq' i), ← (QuotientAddGroup.out_eq' j)]
+      apply QuotientAddGroup.eq.mpr
+      apply Ideal.mem_span_singleton'.mpr
+      refine ⟨⟨_, h01_int⟩, ?_⟩
+      apply (Subtype.coe_inj).mp
+      push_cast
+      rw [mul_comm ((α : v.adicCompletion F)⁻¹) _, mul_assoc,
+        inv_mul_cancel₀ ((Subtype.coe_ne_coe).mpr hα), mul_one]
+      ring
     · -- unipotent vs diag': the ratio has α⁻¹ in some entry → not in U0
       sorry
     · -- diag' vs unipotent: symmetric
