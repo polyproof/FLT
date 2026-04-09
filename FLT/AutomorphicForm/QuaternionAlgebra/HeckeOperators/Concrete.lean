@@ -178,6 +178,15 @@ noncomputable abbrev diag :
     (FiniteAdeleRing.GL2.restrictedProduct.symm
     (RestrictedProduct.mulSingle _ _ (Local.GL2.diag α hα)))
 
+/-- The (global) "flipped" diagonal matrix element `diag(1, α) = !![1, 0; 0, α]` at place `v`,
+identity elsewhere. This is the extra coset representative in the T_v double coset
+decomposition at good primes (beyond the q_v unipotent_mul_diag cosets). -/
+noncomputable abbrev diag_prime :
+    (D ⊗[F] (FiniteAdeleRing (𝓞 F) F))ˣ :=
+  Units.mapEquiv r.symm.toMulEquiv
+    (FiniteAdeleRing.GL2.restrictedProduct.symm
+    (RestrictedProduct.mulSingle _ _ (Local.diag' α hα)))
+
 /-- The (global) matrix element `(unipotent t) * (diag α hα) = !![α, t; 0, 1]`.
 Here `t ∈ 𝒪ᵥ / α` and we lift it arbitrarily to `𝒪ᵥ`. -/
 noncomputable def unipotent_mul_diag (t : ↑(adicCompletionIntegers F v) ⧸ (Ideal.span {α})) :
