@@ -160,6 +160,28 @@ noncomputable def T (v : HeightOneSpectrum (𝓞 F)) :
   AbstractHeckeOperator.HeckeOperator (R := R) g (U1 r S) (U1 r S)
   (QuotientGroup.mk_image_finite_of_compact_of_open (U1_compact r S) (U1_open r S))
 
+/-- The local uniformizer at `v` as an element of the valuation subring `O_v`. -/
+noncomputable def uniformizerInt (v : HeightOneSpectrum (𝓞 F)) :
+    v.adicCompletionIntegers F :=
+  ⟨v.adicCompletionUniformizer F, by
+    rw [HeightOneSpectrum.mem_adicCompletionIntegers,
+      HeightOneSpectrum.adicCompletionUniformizer_spec]
+    -- ofAdd(-1) ≤ 1 in WithZero(Multiplicative ℤ)
+    exact le_of_lt (by
+      rw [show (1 : WithZero (Multiplicative ℤ)) = ↑(Multiplicative.ofAdd (0 : ℤ)) from rfl]
+      exact WithZero.coe_lt_coe.mpr (Multiplicative.ofAdd_lt.mpr (by omega)))⟩
+
+lemma uniformizerInt_ne_zero (v : HeightOneSpectrum (𝓞 F)) :
+    uniformizerInt (F := F) v ≠ 0 := by
+  intro h
+  have := congrArg Subtype.val h
+  simp [uniformizerInt] at this
+  exact HeightOneSpectrum.adicCompletionUniformizer_ne_zero F v this
+
+lemma uniformizerInt_irreducible (v : HeightOneSpectrum (𝓞 F)) :
+    Irreducible (uniformizerInt (F := F) v) := by
+  sorry
+
 section U
 
 variable {F D}
