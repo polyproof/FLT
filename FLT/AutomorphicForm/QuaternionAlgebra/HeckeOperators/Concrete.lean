@@ -525,10 +525,40 @@ theorem bijOn_T_cosets_U1diagU1
       rw [mul_comm ((α : v.adicCompletion F)⁻¹) _, mul_assoc,
         inv_mul_cancel₀ ((Subtype.coe_ne_coe).mpr hα), mul_one]
       ring
-    · -- unipotent vs diag': symmetric to diag'/unipotent
+    · -- unipotent vs diag': symmetric — the ratio (unipotent)⁻¹ * diag' has
+      -- α⁻¹ in entry (0,0) at v, contradicting U0 membership.
       exfalso
       have hratio := QuotientGroup.eq.mp h
-      sorry
+      set g_loc : GL (Fin 2) (adicCompletion F v) :=
+        (Local.GL2.unipotent_mul_diag α hα (Quotient.out i))⁻¹ *
+          Local.diag' α hα
+      set w' : GL (Fin 2) (FiniteAdeleRing (𝓞 F) F) :=
+        FiniteAdeleRing.GL2.restrictedProduct.symm
+          (RestrictedProduct.mulSingle _ v g_loc)
+      have h_image : Units.mapEquiv r.symm.toMulEquiv w' =
+          (unipotent_mul_diag r α hα i)⁻¹ * (diag' r α hα) := by
+        unfold unipotent_mul_diag diag'
+        rw [← map_inv, ← map_mul, ← map_inv, ← map_mul,
+          ← RestrictedProduct.mulSingle_inv,
+          ← RestrictedProduct.mulSingle_mul]
+      obtain ⟨w, hw_mem, hw_eq⟩ := Subgroup.mem_map.mp hratio
+      have hw'_eq : w' = w := by
+        apply (Units.mapEquiv r.symm.toMulEquiv).injective
+        rw [h_image]; exact hw_eq.symm
+      have hw'_mem : w' ∈ GL2.TameLevel S := hw'_eq ▸ hw_mem
+      have hg_loc_mem : g_loc ∈ GL2.localFullLevel v := by
+        have := hw'_mem.1 v
+        rwa [FiniteAdeleRing.GL2.toAdicCompletion_restrictedProduct_symm_mulSingle_same v _] at this
+      -- g_loc(0,0) = α⁻¹, not in O_v
+      have hentry : (g_loc : GL (Fin 2) _).val 0 0 =
+          (α : adicCompletion F v)⁻¹ := by sorry
+      have h00 := GL2.v_le_one_of_mem_localFullLevel _ hg_loc_mem 0 0
+      rw [hentry] at h00; rw [map_inv₀] at h00
+      exact hα_irr.1 (Valued.isUnit_valuationSubring_iff.mpr
+        (le_antisymm α.property
+          ((inv_le_one₀ (zero_lt_iff.mpr
+            (Valuation.ne_zero_iff _ |>.mpr
+              (by exact_mod_cast hα)))).mp h00)))
     · -- diag' vs unipotent: project ratio at v to get local element with α⁻¹ entry.
       exfalso
       have hratio := QuotientGroup.eq.mp h
