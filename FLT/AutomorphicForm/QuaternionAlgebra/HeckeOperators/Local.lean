@@ -409,10 +409,25 @@ lemma mapsTo_T_cosets_U0diagU0 :
     refine ⟨sw * diag α hα, Set.mul_mem_mul hsw_mem rfl, ?_⟩
     -- Goal: mk(diag') = mk(sw * diag)
     -- i.e., (diag')⁻¹ * (sw * diag) ∈ U0
+    -- Goal: mk(diag') = mk(sw * diag). Use symm + QuotientGroup.eq.
+    symm
     apply QuotientGroup.eq.mpr
-    -- The product (diag')⁻¹ * sw * diag equals sw, which is in U0.
-    -- TODO: matrix computation — (diag')⁻¹ * sw * diag = !![0,1;1,0] = sw
-    sorry
+    -- Goal: (sw * diag)⁻¹ * diag' ∈ U0. Show it equals sw via convert.
+    convert hsw_mem using 1
+    -- Remaining: (sw * diag)⁻¹ * diag' = sw
+    set_option maxHeartbeats 800000 in
+    apply Units.ext; ext i j
+    simp only [Units.val_mul, Matrix.coe_units_inv, Matrix.mul_apply, Fin.sum_univ_two,
+      Units.val_inv_eq_inv_val, Matrix.mul_inv_rev]
+    push_cast [diag_def, diag'_def, sw]
+    simp only [Matrix.inv_def, Matrix.det_fin_two_of, mul_one, mul_zero, sub_zero, zero_sub,
+      Ring.inverse_eq_inv', Matrix.adjugate_fin_two_of, neg_zero, neg_neg, neg_mul,
+      Matrix.smul_of, Matrix.smul_cons, smul_eq_mul, Matrix.smul_empty,
+      Matrix.of_apply, Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+      Matrix.cons_val_fin_one, zero_mul, one_mul, mul_one, mul_zero,
+      add_zero, zero_add, Matrix.mul_apply, Fin.sum_univ_two]
+    have hα' : (α : v.adicCompletion F) ≠ 0 := (Subtype.coe_ne_coe).mpr hα
+    fin_cases i <;> fin_cases j <;> simp <;> field_simp
   | some s =>
     -- unipotent_mul_diag t = unipotent(t) * diag, and unipotent(t) ∈ U0
     apply Set.mem_image_of_mem QuotientGroup.mk
