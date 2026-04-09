@@ -633,7 +633,49 @@ theorem bijOn_T_cosets_U1diagU1
       -- Global representative and verification (same as existing SurjOn)
       refine ⟨unipotent_mul_diag r α hα t,
         Or.inl ⟨t, trivial, rfl⟩, ?_⟩
-      sorry
+      -- Show mk(unipotent_mul_diag t) = mk(u * diag)
+      apply QuotientGroup.eq.mpr
+      refine Subgroup.mem_map.mpr ?_
+      -- Build global witness W (same as existing SurjOn lines 370-413)
+      set W : GL (Fin 2) (FiniteAdeleRing (𝓞 F) F) :=
+        (FiniteAdeleRing.GL2.restrictedProduct.symm
+          (RestrictedProduct.mulSingle _ v
+            (Local.GL2.unipotent_mul_diag α hα
+              (Quotient.out t : adicCompletionIntegers F v))))⁻¹ *
+        (w * FiniteAdeleRing.GL2.restrictedProduct.symm
+          (RestrictedProduct.mulSingle _ v
+            (Local.GL2.diag α hα))) with hW_def
+      refine ⟨W, ?_, ?_⟩
+      · -- W ∈ GL2.TameLevel S: check at each place
+        refine ⟨fun w_place => ?_, fun w_place hwS => ?_⟩
+        · by_cases hwv : w_place = v
+          · subst hwv; rw [hW_def]
+            simp only [map_mul, map_inv]
+            rw [FiniteAdeleRing.GL2.toAdicCompletion_restrictedProduct_symm_mulSingle_same,
+              FiniteAdeleRing.GL2.toAdicCompletion_restrictedProduct_symm_mulSingle_same]
+            exact hlocal_ratio
+          · rw [hW_def]; simp only [map_mul, map_inv]
+            rw [FiniteAdeleRing.GL2.toAdicCompletion_restrictedProduct_symm_mulSingle_ne hwv,
+              FiniteAdeleRing.GL2.toAdicCompletion_restrictedProduct_symm_mulSingle_ne hwv]
+            simp only [inv_one, one_mul, mul_one]
+            exact hw_mem.1 w_place
+        · by_cases hwv : w_place = v
+          · subst hwv; rw [hW_def]
+            simp only [map_mul, map_inv]
+            rw [FiniteAdeleRing.GL2.toAdicCompletion_restrictedProduct_symm_mulSingle_same,
+              FiniteAdeleRing.GL2.toAdicCompletion_restrictedProduct_symm_mulSingle_same]
+            sorry -- Need: hlocal_ratio gives TameLevel at v (but v ∉ S, so this is vacuous!)
+          · rw [hW_def]; simp only [map_mul, map_inv]
+            rw [FiniteAdeleRing.GL2.toAdicCompletion_restrictedProduct_symm_mulSingle_ne hwv,
+              FiniteAdeleRing.GL2.toAdicCompletion_restrictedProduct_symm_mulSingle_ne hwv]
+            simp only [inv_one, one_mul, mul_one]
+            exact hw_mem.2 w_place hwS
+      · -- Units.map r.symm W = ratio
+        rw [← hw_eq]
+        change Units.map r.symm.toMonoidHom W =
+          (unipotent_mul_diag r α hα t)⁻¹ *
+            (Units.map r.symm.toMonoidHom w * diag r α hα)
+        rw [hW_def]; simp only [map_mul, map_inv]; rfl
     | none =>
       -- Representative is diag'.
       -- Local ratio: (Local.diag')⁻¹ * (g_loc * Local.diag) ∈ U0 v
