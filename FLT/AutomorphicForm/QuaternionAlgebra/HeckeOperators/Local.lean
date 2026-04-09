@@ -652,8 +652,19 @@ lemma surjOn_T_cosets_U0diagU0
           rw [show (↑α : adicCompletion F v)⁻¹ * (↑d' * ↑α) = ↑d' from by
             rw [mul_comm (↑d' : adicCompletion F v) ↑α, ← mul_assoc, inv_mul_cancel₀ hα_ne', one_mul]]
           exact d'.2
-      · -- det = det(x): det(diag'⁻¹) * det(x) * det(diag) = α⁻¹ * det(x) * α = det(x).
-        sorry
+      · -- det((diag')⁻¹ * (x * diag)) = det(diag')⁻¹ * det(x) * det(diag) = α⁻¹ * det(x) * α = det(x).
+        -- And v(det(x)) = 1 since x ∈ U0.
+        simp only [Units.val_mul, Matrix.det_mul, Matrix.coe_units_inv, Matrix.det_nonsing_inv]
+        rw [diag'_def, diag_def]
+        simp only [Matrix.det_fin_two_of, mul_one, mul_zero, sub_zero, one_mul, zero_mul]
+        have hα_ne : (α : v.adicCompletion F) ≠ 0 := (Subtype.coe_ne_coe).mpr hα
+        simp only [Ring.inverse_eq_inv]
+        rw [map_mul, map_mul, map_inv₀]
+        have hv_ne : Valued.v (↑α : adicCompletion F v) ≠ 0 := by
+          simp only [ne_eq, map_eq_zero]; exact hα_ne
+        rw [← mul_assoc, mul_comm (Valued.v (↑α : adicCompletion F v))⁻¹,
+          mul_assoc, inv_mul_cancel₀ hv_ne, mul_one,
+          GL2.v_det_val_mem_localFullLevel_eq_one hx]
 
 variable (v) in
 /-- The double coset `U0 · diag · U0 / U0` is in bijection with `Option (O_v / αO_v)`.
