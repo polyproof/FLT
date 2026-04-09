@@ -525,9 +525,17 @@ theorem bijOn_T_cosets_U1diagU1
       rw [mul_comm ((α : v.adicCompletion F)⁻¹) _, mul_assoc,
         inv_mul_cancel₀ ((Subtype.coe_ne_coe).mpr hα), mul_one]
       ring
-    · -- unipotent vs diag': the ratio has α⁻¹ in some entry → not in U0
+    · -- unipotent vs diag': symmetric to diag'/unipotent
+      exfalso
+      have hratio := QuotientGroup.eq.mp h
       sorry
-    · -- diag' vs unipotent: symmetric
+    · -- diag' vs unipotent: (diag')⁻¹ * unipotent_mul_diag(j) projected at v
+      -- has α⁻¹ entry, not in O_v since α is not a unit.
+      exfalso
+      have hratio := QuotientGroup.eq.mp h
+      -- The ratio diag'⁻¹ * unipotent_mul_diag(j) ∈ U1
+      -- Project at v: the local ratio = Local.diag'⁻¹ * Local.unipotent_mul_diag(j)
+      -- which has α⁻¹ in entry (1,1) or (0,0), contradicting U0 membership.
       sorry
     · -- diag' vs diag': same element
       rfl
