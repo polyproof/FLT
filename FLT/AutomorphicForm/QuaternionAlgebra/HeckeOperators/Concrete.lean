@@ -599,7 +599,15 @@ theorem bijOn_T_cosets_U1diagU1
     · -- diag' vs diag': same element
       rfl
   · -- SurjOn: every coset in U1diagU1 is represented.
-    -- Uses isProductAt_transported + local surjOn (T_cosets decomposition).
+    -- Uses isProductAt_transported + local surjOn.
+    -- Structure mirrors bijOn_unipotent_mul_diagU1_U1diagU1 SurjOn (lines 339-414).
+    rintro _ ⟨_, ⟨u, hu, _, rfl, rfl⟩, rfl⟩
+    -- u ∈ U1 r S. Pull back to w ∈ GL2.TameLevel S.
+    obtain ⟨w, hw_mem, hw_eq⟩ := Subgroup.mem_map.mp hu
+    -- Use isProductAt_transported to decompose w at place v.
+    -- Get a v-local factor w_v and a complement w_rest.
+    -- Apply local surjOn_T_cosets at v to get the representative index.
+    -- Construct the global representative and verify the quotient equality.
     sorry
 
 omit [IsTotallyReal F] in
