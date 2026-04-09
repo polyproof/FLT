@@ -106,7 +106,9 @@ instance {F E D : Type*}
     sorry
   dim_four := by
     -- rank E (E ⊗[F] D) = rank F D = 4.
-    sorry
+    haveI : Module.Free F D := Module.Free.of_divisionRing F D
+    rw [Module.rank_baseChange]
+    simp [@IsQuaternionAlgebra.dim_four F _ D _ _ _]
 
 variable {p : ℕ} [Fact p.Prime] in
 noncomputable instance : NormedSpace ℚ_[p] (PadicAlgCl p) := spectralNorm.normedSpace ..
