@@ -334,6 +334,174 @@ noncomputable def diag' (α : v.adicCompletionIntegers F) (hα : α ≠ 0) :
       rw [inv_mul_cancel₀]
       exact_mod_cast hα⟩])
 
+lemma diag'_def :
+    (diag' α hα : Matrix (Fin 2) (Fin 2) (adicCompletion F v))
+    = !![1, 0; 0, ↑α] := by
+  rw [diag', Matrix.GeneralLinearGroup.diagonal]
+  ext i j; fin_cases i; all_goals fin_cases j
+  all_goals simp
+
+/-- The unipotent matrix `!![1, t; 0, 1]` is in `U0 v = GL₂(O_v)` for `t ∈ O_v`. -/
+lemma unipotent_mem_U0 (t : v.adicCompletionIntegers F) :
+    unipotent ↑t ∈ (U0 v) :=
+  (unipotent_mem_U1 t).left
+
+variable (v) in
+/-- The double coset space `U0 diag U0` as a set of left cosets. Since right-multiplying
+by `U0` does not change the coset class, `mk '' (U0 * {diag} * U0) = mk '' (U0 * {diag})`. -/
+noncomputable def U0diagU0 :
+    Set ((GL (Fin 2) (adicCompletion F v)) ⧸ (U0 v)) :=
+  QuotientGroup.mk '' ((U0 v : Set _) * {diag α hα})
+
+variable (v) in
+/-- The family of `q+1` coset representatives for the `U0 diag U0` double coset:
+- `none` maps to `[diag']` (the "extra" coset)
+- `some t` maps to `[unipotent_mul_diag t]` for `t ∈ O_v / αO_v` (the `q` unipotent cosets). -/
+noncomputable def T_cosets :
+    Option (adicCompletionIntegers F v ⧸ Ideal.span {α}) →
+    (GL (Fin 2) (adicCompletion F v)) ⧸ (U0 v)
+  | none => QuotientGroup.mk (diag' α hα)
+  | some t => QuotientGroup.mk (unipotent_mul_diag α hα (Quotient.out t))
+
+/-- Each `T_cosets` value is in `U0diagU0`. -/
+lemma mapsTo_T_cosets :
+    Set.MapsTo (T_cosets v α hα) ⊤ (U0diagU0 v α hα) := by
+  intro x _
+  cases x with
+  | some t =>
+    -- `unipotent_mul_diag t = unipotent t * diag`, and `unipotent t ∈ U0`.
+    exact Set.mem_image_of_mem QuotientGroup.mk
+      (Set.mul_mem_mul (unipotent_mem_U0 (Quotient.out t)) rfl)
+  | none =>
+    -- `diag' = W * diag * W` where `W = !![0,1;1,0] ∈ U0`.
+    -- So `mk(diag') = mk(W * diag)` (since `W ∈ U0` on the right cancels in the quotient).
+    -- And `W * diag ∈ U0 * {diag}`, so `mk(W * diag) ∈ mk '' (U0 * {diag})`.
+    -- Concretely: `mk(diag') = mk(W * diag)` iff `(W * diag)⁻¹ * diag' ∈ U0`,
+    -- and `(W * diag)⁻¹ * diag' = W ∈ U0`.
+    -- Define the swap matrix W
+    let W : GL (Fin 2) (adicCompletion F v) :=
+      letI detInv : Invertible !![0, 1; 1, (0 : adicCompletion F v)].det :=
+      { invOf := -1,
+        invOf_mul_self := by simp [Matrix.det_fin_two_of],
+        mul_invOf_self := by simp [Matrix.det_fin_two_of] }
+      Matrix.unitOfDetInvertible !![0, 1; 1, (0 : adicCompletion F v)]
+    -- W * diag is in U0 * {diag}
+    suffices h : QuotientGroup.mk (W * diag α hα) ∈ U0diagU0 v α hα from by
+      -- mk(diag') = mk(W * diag) since (W * diag)⁻¹ * diag' ∈ U0
+      convert h using 1
+      apply QuotientGroup.eq.mpr
+      -- Need: (diag')⁻¹ * (W * diag) ∈ U0
+      -- Show (diag')⁻¹ * (W * diag) = W, then W ∈ U0.
+      have hW_eq : (diag' α hα)⁻¹ * (W * diag α hα) = W := by
+        ext i j
+        push_cast [diag_def, diag'_def, W, Matrix.unitOfDetInvertible,
+          Matrix.inv_def, Matrix.det_fin_two_of, Matrix.adjugate_fin_two_of]
+        fin_cases i <;> fin_cases j <;>
+          simp [Matrix.mul_apply, Fin.sum_univ_two, mul_comm,
+            mul_inv_cancel₀ ((Subtype.coe_ne_coe).mpr hα)]
+      rw [hW_eq]
+      change W ∈ GL2.localFullLevel v
+      apply GL2.mem_localFullLevel_iff_v_le_one_and_v_det_eq_one.mpr
+      constructor
+      · intro i j; fin_cases i <;> fin_cases j <;>
+          simp [W, Matrix.unitOfDetInvertible]
+      · simp [W, Matrix.unitOfDetInvertible, Matrix.det_fin_two_of]
+    -- Show W * diag ∈ U0 * {diag}
+    exact Set.mem_image_of_mem QuotientGroup.mk
+      (Set.mul_mem_mul (by
+        -- W ∈ U0 = GL₂(O_v)
+        change W ∈ GL2.localFullLevel v
+        apply GL2.mem_localFullLevel_iff_v_le_one_and_v_det_eq_one.mpr
+        constructor
+        · intro i j; fin_cases i <;> fin_cases j <;>
+            simp [W, Matrix.unitOfDetInvertible]
+        · simp [W, Matrix.unitOfDetInvertible, Matrix.det_fin_two_of]
+      ) rfl)
+
+/-- Distinct indices give distinct `T_cosets`, i.e., the cosets are disjoint. -/
+lemma injOn_T_cosets (hα_not_unit : ¬IsUnit α) :
+    Set.InjOn (T_cosets v α hα) ⊤ := by
+  intro x _ y _ h
+  cases x with
+  | none =>
+    cases y with
+    | none => rfl
+    | some t₂ =>
+      -- `(diag')⁻¹ * (unipotent_mul_diag t₂)` has (1,1)-entry `α⁻¹`,
+      -- which is NOT in `O_v` (since `α` is not a unit).
+      exfalso
+      simp only [T_cosets] at h
+      have hmem := QuotientGroup.eq.mp h
+      -- Extract (1,1) entry and show it equals α⁻¹
+      have hentry : ((diag' α hα)⁻¹ * unipotent_mul_diag α hα
+          (Quotient.out t₂) : GL (Fin 2) _).val 1 1 =
+          (α : adicCompletion F v)⁻¹ := by
+        push_cast [diag'_def, unipotent_mul_diag, unipotent_def, diag_def,
+          Matrix.inv_def, Matrix.det_fin_two_of, Matrix.adjugate_fin_two_of]
+        simp [Matrix.mul_apply, Fin.sum_univ_two]
+      have hv := GL2.v_le_one_of_mem_localFullLevel _ hmem 1 1
+      rw [hentry] at hv; rw [map_inv₀] at hv
+      exact hα_not_unit (Valued.isUnit_valuationSubring_iff.mpr
+        (le_antisymm (α.property) ((inv_le_one₀ (zero_lt_iff.mpr (Valuation.ne_zero_iff _ |>.mpr
+        (by exact_mod_cast hα)))).mp hv)))
+  | some t₁ =>
+    cases y with
+    | none =>
+      -- `(unipotent_mul_diag t₁)⁻¹ * diag'` has (0,0)-entry `α⁻¹`,
+      -- which is NOT in `O_v` (since `α` is not a unit).
+      exfalso
+      simp only [T_cosets] at h
+      have hmem := QuotientGroup.eq.mp h
+      -- Extract (0,0) entry and show it equals α⁻¹
+      have hentry : ((unipotent_mul_diag α hα (Quotient.out t₁))⁻¹ *
+          diag' α hα : GL (Fin 2) _).val 0 0 =
+          (α : adicCompletion F v)⁻¹ := by
+        push_cast [diag'_def, unipotent_mul_diag, unipotent_def, diag_def,
+          Matrix.inv_def, Matrix.det_fin_two_of, Matrix.adjugate_fin_two_of]
+        simp [Matrix.mul_apply, Fin.sum_univ_two]
+      have hv := GL2.v_le_one_of_mem_localFullLevel _ hmem 0 0
+      rw [hentry] at hv; rw [map_inv₀] at hv
+      exact hα_not_unit (Valued.isUnit_valuationSubring_iff.mpr
+        (le_antisymm (α.property) ((inv_le_one₀ (zero_lt_iff.mpr (Valuation.ne_zero_iff _ |>.mpr
+        (by exact_mod_cast hα)))).mp hv)))
+    | some t₂ =>
+      -- Same argument as the U1 version: the (0,1)-entry of
+      -- `(unipotent_mul_diag t₁)⁻¹ * (unipotent_mul_diag t₂)` determines `t₁ = t₂`.
+      congr 1
+      simp only [T_cosets] at h
+      have unipotent_mem_U0 :=
+        (unipotent_mul_diag_inv_mul_unipotent_mul_diag α hα (Quotient.out t₁)
+          (Quotient.out t₂)) ▸ (QuotientGroup.eq.mp h)
+      have unipotent_apply_zero_one_mem_integer :=
+        GL2.v_le_one_of_mem_localFullLevel _ unipotent_mem_U0 0 1
+      simp only [unipotent, Matrix.unitOfDetInvertible, Fin.isValue, val_unitOfInvertible,
+        Matrix.of_apply, Matrix.cons_val', Matrix.cons_val_one, Matrix.cons_val_fin_one,
+        Matrix.cons_val_zero] at unipotent_apply_zero_one_mem_integer
+      rw [← (QuotientAddGroup.out_eq' t₁), ← (QuotientAddGroup.out_eq' t₂)]
+      apply QuotientAddGroup.eq.mpr; apply Ideal.mem_span_singleton'.mpr
+      use ⟨_, unipotent_apply_zero_one_mem_integer⟩
+      apply (Subtype.coe_inj).mp; push_cast
+      ring_nf; rw [mul_inv_cancel₀ ((Subtype.coe_ne_coe).mpr hα), one_mul, one_mul]
+
+/-- Each coset in `U0diagU0` is of the form `T_cosets` for some index.
+This requires a case analysis on the valuation of the (1,1) entry of the coset
+representative. -/
+lemma surjOn_T_cosets :
+    Set.SurjOn (T_cosets v α hα) ⊤ (U0diagU0 v α hα) := by
+  -- The key idea: given `x ∈ U0`, consider the coset `[x * diag]`.
+  -- Look at the (1,1) entry of `x`: if `v(x₁₁) = 0` (i.e. `x₁₁` is a unit),
+  -- then the coset equals `[unipotent_mul_diag t]` for `t = x₁₁⁻¹ * x₀₁`.
+  -- If `v(x₁₁) > 0` (i.e. `x₁₁ ∈ maximalIdeal`), then the coset equals `[diag']`.
+  sorry
+
+/-- The double coset space `U0diagU0` is the disjoint union of `T_cosets` as the index
+ranges over `Option (O_v / αO_v)`, giving `q + 1` cosets. -/
+theorem bijOn_T_cosets_U0diagU0 (hα_not_unit : ¬IsUnit α) :
+    Set.BijOn (T_cosets v α hα) ⊤ (U0diagU0 v α hα) :=
+  ⟨mapsTo_T_cosets α hα,
+    injOn_T_cosets α hα hα_not_unit,
+    surjOn_T_cosets α hα⟩
+
 end TCosetGoodPrime
 
 end Local
