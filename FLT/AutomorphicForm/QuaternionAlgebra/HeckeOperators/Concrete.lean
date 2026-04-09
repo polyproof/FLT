@@ -587,7 +587,7 @@ theorem bijOn_T_cosets_U1diagU1
       -- The (1,1) entry of g_loc is α⁻¹, not in O_v since ¬IsUnit α.
       have hentry : (g_loc : GL (Fin 2) _).val 1 1 =
           (α : adicCompletion F v)⁻¹ := by
-        -- Same computation as Local.lean injOn none/some hentry
+        -- Matrix entry computation: (diag')⁻¹ * unipotent_mul_diag at (1,1) = α⁻¹
         sorry
       have h11 := GL2.v_le_one_of_mem_localFullLevel _ hg_loc_mem 1 1
       rw [hentry] at h11; rw [map_inv₀] at h11
