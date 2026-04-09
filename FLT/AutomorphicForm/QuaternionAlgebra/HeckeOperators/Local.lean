@@ -553,7 +553,11 @@ lemma surjOn_T_cosets_U0diagU0
           simp only [Ideal.Quotient.mk_out]; rfl
         obtain ⟨q, hq⟩ := Ideal.mem_span_singleton'.mp (Ideal.Quotient.eq.mp t_def)
         use -d * q; rw [mul_assoc, hq]; ring_nf; simp
-      -- Now prove membership in U0 via the entry+det criterion.
+      -- Membership in U0: diag⁻¹ * (unipotent(-out_t) * x) * diag ∈ localFullLevel.
+      -- Uses conjBy_diag + entry-level O_v membership.
+      -- Since the approach via push_cast/rw_mod_cast is blocked on automation,
+      -- and the mathematical argument is clear (entries + det), we sorry this step.
+      -- TODO: Define conjBy_diag_mem_U0 helper or use manual entry extraction.
       sorry
   · -- Case 2: d is not a unit. Since α is irreducible, α generates maximalIdeal.
     -- Every non-unit in O_v is in maximalIdeal = Ideal.span {α}, so α | d.
