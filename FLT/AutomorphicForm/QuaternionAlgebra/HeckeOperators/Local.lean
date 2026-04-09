@@ -385,8 +385,10 @@ lemma mapsTo_T_cosets_U0diagU0 :
   | some t =>
     -- unipotent_mul_diag t = unipotent(t) * diag, where unipotent(t) ∈ U0
     -- (since GL2.unipotent_mem_U1 gives membership in U1 ⊆ U0 via .left).
-    -- So unipotent_mul_diag t ∈ U0 * {diag}, hence mk(unipotent_mul_diag t) ∈ U0diagU0.
-    sorry
+    simp only [T_cosets, U0diagU0]
+    apply Set.mem_image_of_mem (QuotientGroup.mk (s := U0 v))
+    exact Set.mul_mem_mul
+      (GL2.unipotent_mem_U1 (Quotient.out t)).left rfl
 
 /-- Distinct `T_cosets` values give distinct cosets. -/
 lemma injOn_T_cosets
