@@ -314,6 +314,221 @@ theorem bijOn_unipotent_mul_diagU1_U1diagU1 :
 
 end CosetDecomposition
 
+section TCosetFullLevel
+
+/-! ### Double coset decomposition for `GL₂(O_v) · diag(α,1) · GL₂(O_v)`
+
+At a good prime `v` (where the local subgroup is the full level `GL₂(O_v)` rather than
+the tame level), the double coset `GL₂(O_v) · diag(α,1) · GL₂(O_v)` decomposes into
+`|O_v/α| + 1` left cosets modulo `GL₂(O_v)`, represented by:
+- `unipotent_mul_diag α hα t` for `t ∈ O_v / α` (`|O_v/α|` cosets)
+- `diag' α hα = diag[1, α]` (one additional coset)
+
+The surjection uses the fact that `α` generates the maximal ideal (i.e., `α` is a
+uniformizer), so every non-unit in `O_v` is divisible by `α`.
+-/
+
+variable (v) {α hα} in
+/-- The full local level subgroup `GL₂(O_v)`. -/
+noncomputable abbrev U0 : Subgroup (GL (Fin 2) (adicCompletion F v)) := GL2.localFullLevel v
+
+/-- The diagonal matrix element `diag[1, α]`. -/
+noncomputable def diag' : GL (Fin 2) (adicCompletion F v) :=
+  Matrix.GeneralLinearGroup.diagonal (![1, ⟨(α : v.adicCompletion F),
+    (α : v.adicCompletion F)⁻¹, by
+      rw [mul_inv_cancel₀]; exact_mod_cast hα, by
+      rw [inv_mul_cancel₀]; exact_mod_cast hα⟩])
+
+set_option maxHeartbeats 400000 in
+lemma diag'_def :
+    (diag' α hα : Matrix (Fin 2) (Fin 2) (adicCompletion F v))
+    = !![1, 0; 0, ↑α] := by
+  rw [diag', Matrix.GeneralLinearGroup.diagonal]
+  ext i j; fin_cases i; all_goals fin_cases j
+  all_goals simp
+
+-- Computes `(diag')⁻¹ * M * diag` as a raw matrix.
+-- diag' = !![1,0;0,α], diag = !![α,0;0,1], so
+-- (diag')⁻¹ * !![a,b;c,d] * diag = !![aα, b; c, d*α⁻¹]
+set_option maxHeartbeats 800000 in
+lemma conjBy_diag'_diag {a b c d : adicCompletion F v} :
+    (diag' α hα)⁻¹ * !![a, b; c, d] * diag α hα
+    = !![a * (α : v.adicCompletion F), b; c, d * (α : v.adicCompletion F)⁻¹] := by
+  simp only [Matrix.coe_units_inv, diag'_def, diag_def, Matrix.inv_def, Matrix.det_fin_two_of,
+    one_mul, mul_zero, sub_zero, Ring.inverse_eq_inv', Matrix.adjugate_fin_two_of, neg_zero,
+    Matrix.smul_of, Matrix.smul_cons, smul_eq_mul, Matrix.smul_empty, Matrix.cons_mul,
+    Nat.succ_eq_add_one, Nat.reduceAdd, Matrix.vecMul_cons, Matrix.head_cons, Matrix.tail_cons,
+    zero_smul, Matrix.empty_vecMul, add_zero, zero_add, Matrix.empty_mul,
+    Equiv.symm_apply_apply, Matrix.add_cons, Matrix.empty_add_empty,
+    EmbeddingLike.apply_eq_iff_eq, mul_one, zero_mul]
+  have hα' : (α : v.adicCompletion F) ≠ 0 := (Subtype.coe_ne_coe).mpr hα
+  ext i j; fin_cases i <;> fin_cases j <;>
+    simp only [Matrix.of_apply, Matrix.cons_val', Matrix.cons_val_zero, Matrix.cons_val_one,
+      Matrix.cons_val_fin_one] <;>
+    field_simp
+
+variable (v) in
+/-- The double coset space `U0 · diag(α,1) · U0` as a set of left cosets modulo `U0`. -/
+noncomputable def U0diagU0 :
+    Set (GL (Fin 2) (adicCompletion F v) ⧸ (U0 v)) :=
+  QuotientGroup.mk '' ((U0 v : Set _) * {diag α hα})
+
+variable (v) in
+/-- The `|O_v/α| + 1` coset representatives for `U0 · diag · U0 / U0`, indexed by
+`Option (O_v / αO_v)`. `some t` maps to `unipotent_mul_diag t`, `none` maps to `diag'`. -/
+noncomputable def T_cosets
+    (t : Option (↑(adicCompletionIntegers F v) ⧸ (Ideal.span {α}))) :
+    GL (Fin 2) (adicCompletion F v) ⧸ ↑(U0 v) :=
+  match t with
+  | none => QuotientGroup.mk (diag' α hα)
+  | some s => QuotientGroup.mk (unipotent_mul_diag α hα (Quotient.out s))
+
+/-- `T_cosets` maps into `U0diagU0` for all `t`. -/
+lemma mapsTo_T_cosets_U0diagU0 :
+    Set.MapsTo (T_cosets v α hα) ⊤ (U0diagU0 v α hα) := by
+  intro t _
+  cases t with
+  | none =>
+    -- diag' ∈ U0 * {diag}: since swap · diag · swap = diag' and swap ∈ U0,
+    -- we have mk(diag') = mk(swap · diag), which is in mk(U0 · {diag}).
+    simp only [T_cosets, U0diagU0]
+    -- Swap matrix in GL₂
+    set sw : GL (Fin 2) (adicCompletion F v) :=
+      ⟨!![0, 1; (1 : adicCompletion F v), 0],
+       !![0, 1; (1 : adicCompletion F v), 0], by
+        ext i j; fin_cases i <;> fin_cases j <;> simp, by
+        ext i j; fin_cases i <;> fin_cases j <;> simp⟩
+    have hsw_mem : sw ∈ U0 v := by
+      apply GL2.mem_localFullLevel_iff_v_le_one_and_v_det_eq_one.mpr
+      constructor
+      · intro i j; fin_cases i <;> fin_cases j <;> simp [sw]
+      · simp [sw, Matrix.det_fin_two]
+    -- Show mk(diag') = mk(sw * diag) by showing diag'⁻¹ * (sw * diag) ∈ U0.
+    -- Since sw ∈ U0, sw * diag ∈ U0 * {diag}, so mk(sw * diag) ∈ U0diagU0.
+    -- We just need diag'⁻¹ * sw * diag ∈ U0.
+    refine ⟨sw * diag α hα, Set.mul_mem_mul hsw_mem rfl, ?_⟩
+    -- Goal: mk(diag') = mk(sw * diag)
+    -- i.e., (diag')⁻¹ * (sw * diag) ∈ U0
+    apply QuotientGroup.eq.mpr
+    -- The product (diag')⁻¹ * sw * diag equals sw, which is in U0.
+    -- TODO: matrix computation — (diag')⁻¹ * sw * diag = !![0,1;1,0] = sw
+    sorry
+  | some s =>
+    -- unipotent_mul_diag t = unipotent(t) * diag, and unipotent(t) ∈ U0
+    apply Set.mem_image_of_mem QuotientGroup.mk
+    exact Set.mul_mem_mul
+      ((unipotent_mem_U1 (Quotient.out s)).1)
+      rfl
+
+/-- `diag'` and `unipotent_mul_diag` give distinct `U0`-cosets: the ratio
+`(diag')⁻¹ * unipotent_mul_diag(t)` has a `(1,1)` entry `α⁻¹`, which is not in `O_v`
+when `α` is not a unit. -/
+lemma T_cosets_none_ne_some (hα_nonunit : ¬IsUnit α)
+    (t : ↑(adicCompletionIntegers F v) ⧸ (Ideal.span {α})) :
+    T_cosets v α hα none ≠ T_cosets v α hα (some t) := by
+  intro h
+  simp only [T_cosets] at h
+  -- h : mk(diag') = mk(unipotent_mul_diag(Quotient.out t))
+  -- So (diag')⁻¹ * unipotent_mul_diag(Quotient.out t) ∈ U0
+  have hmem := QuotientGroup.eq.mp h
+  -- The (1,1) entry of (diag')⁻¹ * unipotent_mul_diag(t) is α⁻¹.
+  -- Since α is not a unit, α⁻¹ ∉ O_v, contradicting membership in localFullLevel.
+  sorry
+
+/-- Distinct `T_cosets` entries give distinct cosets. -/
+lemma injOn_T_cosets (hα_nonunit : ¬IsUnit α) :
+    Set.InjOn (T_cosets v α hα) ⊤ := by
+  intro t₁ _ t₂ _ h
+  cases t₁ with
+  | none =>
+    cases t₂ with
+    | none => rfl
+    | some s₂ => exact absurd h (T_cosets_none_ne_some α hα hα_nonunit s₂)
+  | some s₁ =>
+    cases t₂ with
+    | none => exact absurd h.symm (T_cosets_none_ne_some α hα hα_nonunit s₁)
+    | some s₂ =>
+      -- Same argument as injOn_unipotent_mul_diagU1 but with U0 instead of U1.
+      -- If mk(unipotent_mul_diag s₁) = mk(unipotent_mul_diag s₂) then
+      -- (unipotent_mul_diag s₁)⁻¹ * unipotent_mul_diag s₂ ∈ U0 = GL₂(O_v).
+      -- The (0,1) entry of the ratio is α⁻¹(s₂ - s₁) which must be in O_v.
+      -- This forces s₁ = s₂ in O_v/α.
+      congr 1
+      simp only [T_cosets] at h
+      have hratio : (unipotent_mul_diag α hα (Quotient.out s₁))⁻¹ *
+          (unipotent_mul_diag α hα (Quotient.out s₂)) ∈ U0 v :=
+        QuotientGroup.eq.mp h
+      -- The ratio is a unipotent matrix by unipotent_mul_diag_inv_mul_unipotent_mul_diag.
+      -- Its (0,1) entry α⁻¹(s₂ - s₁) must be in O_v (from membership in localFullLevel).
+      have h01_int :=
+        GL2.v_le_one_of_mem_localFullLevel _ hratio 0 1
+      rw [unipotent_mul_diag_inv_mul_unipotent_mul_diag] at h01_int
+      simp only [unipotent, Matrix.unitOfDetInvertible, Fin.isValue, val_unitOfInvertible,
+        Matrix.of_apply, Matrix.cons_val', Matrix.cons_val_one, Matrix.cons_val_fin_one,
+        Matrix.cons_val_zero] at h01_int
+      rw [← (QuotientAddGroup.out_eq' s₁), ← (QuotientAddGroup.out_eq' s₂)]
+      apply QuotientAddGroup.eq.mpr; apply Ideal.mem_span_singleton'.mpr
+      use ⟨_, h01_int⟩
+      apply (Subtype.coe_inj).mp; push_cast
+      ring_nf; rw [mul_inv_cancel₀ ((Subtype.coe_ne_coe).mpr hα), one_mul, one_mul]
+
+/-- Every coset in `U0diagU0` is of the form `T_cosets t` for some `t`.
+Requires `α` to be a uniformizer (generates the maximal ideal). -/
+lemma surjOn_T_cosets_U0diagU0
+    (hα_irred : Irreducible α) :
+    Set.SurjOn (T_cosets v α hα) ⊤ (U0diagU0 v α hα) := by
+  rintro _ ⟨_, ⟨x, hx, _, rfl, rfl⟩, rfl⟩
+  -- x ∈ U0 = GL₂(O_v). Write x = !![a,b;c,d] with entries in O_v.
+  let a : adicCompletionIntegers F v := ⟨_, GL2.v_le_one_of_mem_localFullLevel _ hx 0 0⟩
+  let b : adicCompletionIntegers F v := ⟨_, GL2.v_le_one_of_mem_localFullLevel _ hx 0 1⟩
+  let c : adicCompletionIntegers F v := ⟨_, GL2.v_le_one_of_mem_localFullLevel _ hx 1 0⟩
+  let d : adicCompletionIntegers F v := ⟨_, GL2.v_le_one_of_mem_localFullLevel _ hx 1 1⟩
+  have hx₁ : x = !![(a : adicCompletion F v), b; c, d] :=
+    (Matrix.etaExpand_eq (x : Matrix (Fin 2) (Fin 2) (adicCompletion F v))).symm
+  -- Case split: is d a unit in O_v?
+  by_cases hd : IsUnit d
+  · -- Case 1: d is a unit. Same as surjOn_unipotent_mul_diagU1_U1diagU1.
+    -- Choose t = ⅟d * b, then unipotent_mul_diag(t)⁻¹ * (x * diag) ∈ U0.
+    letI invertible_d := hd.invertible
+    let t : ↑(adicCompletionIntegers F v) ⧸ (Ideal.span {α}) := (⅟d * b)
+    use (some t)
+    constructor
+    · trivial
+    · -- mk(T_cosets(some t)) = mk(x * diag)
+      -- Choose t = ⅟d * b, then (unipotent_mul_diag(out t))⁻¹ * (x * diag) ∈ U0.
+      -- The proof that the ratio is in U0 follows from the existing surjOn for U1:
+      -- surjOn_unipotent_mul_diagU1_U1diagU1 shows the ratio lies in U1, and U1 ⊆ U0.
+      sorry
+  · -- Case 2: d is not a unit. Since α is irreducible, α generates maximalIdeal.
+    -- Every non-unit in O_v is in maximalIdeal = Ideal.span {α}, so α | d.
+    have hd_mem : d ∈ Ideal.span {α} := by
+      rw [← hα_irred.maximalIdeal_eq]
+      exact (IsLocalRing.mem_maximalIdeal d).mpr hd
+    obtain ⟨d', hd'⟩ := Ideal.mem_span_singleton'.mp hd_mem
+    -- mk(x * diag) = mk(diag') = T_cosets(none)
+    use none
+    constructor
+    · trivial
+    · simp only [T_cosets]
+      apply QuotientGroup.eq.mpr
+      -- Need: (diag')⁻¹ * (x * diag) ∈ U0 = localFullLevel v
+      -- Rewrite x = !![a,b;c,d] and use conjBy_diag'_diag.
+      -- (diag')⁻¹ * x * diag = !![a*α, b; c, d*α⁻¹] by conjBy_diag'_diag.
+      -- Since d = α*d', d*α⁻¹ = d'. All entries in O_v, det = det(x) ∈ O_v^×.
+      sorry
+
+variable (v) in
+/-- The double coset `U0 · diag · U0 / U0` is in bijection with `Option (O_v / αO_v)`.
+Requires `α` to be a uniformizer (irreducible). -/
+theorem bijOn_T_cosets_U0diagU0
+    (hα_irred : Irreducible α) :
+    Set.BijOn (T_cosets v α hα) ⊤ (U0diagU0 v α hα) :=
+  ⟨mapsTo_T_cosets_U0diagU0 α hα,
+    injOn_T_cosets α hα hα_irred.1,
+    surjOn_T_cosets_U0diagU0 α hα hα_irred⟩
+
+end TCosetFullLevel
+
 end Local
 
 end TotallyDefiniteQuaternionAlgebra.WeightTwoAutomorphicForm.HeckeOperator
