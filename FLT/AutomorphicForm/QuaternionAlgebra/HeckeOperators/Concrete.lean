@@ -1239,11 +1239,15 @@ noncomputable instance instCommRing :
       have ⟨αv, hαv_ne, hαv_irr, hαv_eq⟩ :
           ∃ (α : v.adicCompletionIntegers F) (hα : α ≠ 0),
             Irreducible α ∧
-            (α : v.adicCompletion F) = v.adicCompletionUniformizer F := sorry
+            (α : v.adicCompletion F) = v.adicCompletionUniformizer F :=
+        ⟨uniformizerInt (F := F) v, uniformizerInt_ne_zero (F := F) v,
+          uniformizerInt_irreducible (F := F) v, rfl⟩
       have ⟨αw, hαw_ne, hαw_irr, hαw_eq⟩ :
           ∃ (α : w.adicCompletionIntegers F) (hα : α ≠ 0),
             Irreducible α ∧
-            (α : w.adicCompletion F) = w.adicCompletionUniformizer F := sorry
+            (α : w.adicCompletion F) = w.adicCompletionUniformizer F :=
+        ⟨uniformizerInt (F := F) w, uniformizerInt_ne_zero (F := F) w,
+          uniformizerInt_irreducible (F := F) w, rfl⟩
       -- After T_eq_diag rewrite, apply AbstractHeckeOperator.comm
       sorry
   · -- (T_v, U_{w,β}): good prime T_v commutes with bad prime U_{w,β}.
