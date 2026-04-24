@@ -5,6 +5,9 @@ Authors: Kevin Buzzard, Jonas Bayer
 -/
 import Mathlib.Data.Int.Star
 import FLT.GlobalLanglandsConjectures.GLnDefs
+import FLT.NumberField.Completion.Finite
+import FLT.Mathlib.NumberTheory.NumberField.FiniteAdeleRing
+import FLT.QuaternionAlgebra.NumberField
 
 /-!
 # Proof of a case of the global Langlands conjectures.
@@ -177,6 +180,98 @@ noncomputable def classification : AutomorphicFormForGLnOverQ 0 ρ ≃ ℂ := {
 
 end GL0
 
+/-! ## Infrastructure for has_finite_level (general n)
+
+We construct GL_n(integralAdeles) as an open compact subgroup of GL_n(FiniteAdeleRing ℤ ℚ).
+This requires proving that each adic completion integer ring of ℤ has finite residue field
+and is compact, lifting the NumberField machinery to the ℤ/ℚ setting.
+-/
+
+section has_finite_level_helpers
+
+open IsDedekindDomain NumberField IsLocalRing FiniteAdeleRing
+
+section IntAdeles
+variable (v : HeightOneSpectrum ℤ)
+
+instance : Finite (ResidueField (v.adicCompletionIntegers ℚ)) := by
+  apply (HeightOneSpectrum.ResidueFieldEquivCompletionResidueField ℚ v).toEquiv.finite_iff.mp
+  exact Ideal.finiteQuotientOfFreeOfNeBot v.asIdeal v.ne_bot
+
+open scoped Valued in
+instance : Finite (𝓀[v.adicCompletion ℚ]) :=
+  inferInstanceAs (Finite (ResidueField (v.adicCompletionIntegers ℚ)))
+
+instance : CompactSpace (v.adicCompletionIntegers ℚ) :=
+  Valued.WithZeroMulInt.integer_compactSpace (v.adicCompletion ℚ) inferInstance
+
+end IntAdeles
+
+instance : T2Space (FiniteAdeleRing ℤ ℚ) :=
+  inferInstanceAs (T2Space (RestrictedProduct _ _ _))
+
+instance : CompactSpace (integralAdeles ℤ ℚ) :=
+  isCompact_iff_compactSpace.1 <|
+  isCompact_range RestrictedProduct.isEmbedding_structureMap.continuous
+
+private lemma isOpen_integralAdeles_Int :
+    IsOpen (integralAdeles ℤ ℚ : Set (FiniteAdeleRing ℤ ℚ)) := by
+  suffices h : (integralAdeles ℤ ℚ : Set (FiniteAdeleRing ℤ ℚ)) =
+    {f | ∀ i, (f : FiniteAdeleRing ℤ ℚ) i ∈
+      (fun v => (v.adicCompletionIntegers ℚ : Set (v.adicCompletion ℚ))) i} from
+    h ▸ RestrictedProduct.isOpen_forall_mem (fun v => by
+      have : (v.adicCompletionIntegers ℚ : Set (v.adicCompletion ℚ)) = {x | Valued.v x ≤ 1} := by
+        ext x; simp only [SetLike.mem_coe]; rfl
+      rw [this]; exact Valued.isOpen_closedBall _ one_ne_zero)
+  ext x; simp only [Set.mem_setOf_eq, SetLike.mem_coe]
+  exact RestrictedProduct.mem_structureSubring_iff
+
+private lemma isCompact_integralAdeles_Int :
+    IsCompact (integralAdeles ℤ ℚ : Set (FiniteAdeleRing ℤ ℚ)) :=
+  isCompact_range RestrictedProduct.isEmbedding_structureMap.continuous
+
+private noncomputable def GLn_fullLevel (n : ℕ) :
+    Subgroup (GL (Fin n) (FiniteAdeleRing ℤ ℚ)) :=
+  MonoidHom.range (Units.map (RingHom.mapMatrix (integralAdeles ℤ ℚ).subtype).toMonoidHom)
+
+private lemma GLn_fullLevel_carrier_eq (n : ℕ) :
+    (GLn_fullLevel n).carrier =
+    (((integralAdeles ℤ ℚ).matrix (n := Fin n)).toSubmonoid.units : Set _) := by
+  ext x
+  simp only [Subgroup.mem_carrier, SetLike.mem_coe, GLn_fullLevel]
+  constructor
+  · rintro ⟨y, hy⟩
+    rw [Submonoid.mem_units_iff]
+    exact ⟨fun i j => by rw [← hy]; exact (y.val i j).prop,
+           fun i j => by rw [← hy]; simp only [Units.coe_map_inv]; exact (y⁻¹.val i j).prop⟩
+  · intro hx
+    rw [Submonoid.mem_units_iff] at hx
+    obtain ⟨hval, hinv⟩ := hx
+    let M : Matrix (Fin n) (Fin n) (integralAdeles ℤ ℚ) :=
+      Matrix.of fun i j => ⟨x.val i j, hval i j⟩
+    let Minv : Matrix (Fin n) (Fin n) (integralAdeles ℤ ℚ) :=
+      Matrix.of fun i j => ⟨x.inv i j, hinv i j⟩
+    have hMMinv : M * Minv = 1 := by
+      have hinj : Function.Injective (RingHom.mapMatrix (integralAdeles ℤ ℚ).subtype :
+        Matrix (Fin n) (Fin n) _ → Matrix (Fin n) (Fin n) _) := by
+        intro a b h; funext i j
+        exact Subtype.val_injective (congr_fun (congr_fun h i) j)
+      apply hinj
+      simp only [map_mul, map_one, RingHom.mapMatrix_apply, Matrix.map_apply, 
+        Subring.coe_subtype, M, Minv, Matrix.of_apply]
+      exact x.val_inv
+    have hMinvM : Minv * M = 1 := mul_eq_one_comm.mp hMMinv
+    exact ⟨⟨M, Minv, hMMinv, hMinvM⟩, Units.ext (by
+      ext i j; simp [M, Matrix.map_apply])⟩
+
+private theorem GLn_fullLevel_isOpen (n : ℕ) : IsOpen (GLn_fullLevel n).carrier :=
+  GLn_fullLevel_carrier_eq n ▸ Submonoid.isOpen_units isOpen_integralAdeles_Int.matrix
+
+private theorem GLn_fullLevel_isCompact (n : ℕ) : IsCompact (GLn_fullLevel n).carrier :=
+  GLn_fullLevel_carrier_eq n ▸ Submonoid.units_isCompact isCompact_integralAdeles_Int.matrix
+
+end has_finite_level_helpers
+
 namespace GLn
 
 -- Let's write down an inverse
@@ -194,7 +289,11 @@ def ofComplex (z : ℂ) {n : ℕ} (ρ : Weight n) (hρ : ρ.IsTrivial) :
       is_periodic := by simp
       is_slowly_increasing x := ⟨‖z‖, 0, by simp⟩
       is_finite_cod := sorry -- needs a better name
-      has_finite_level := sorry -- needs a better name
+      has_finite_level := ⟨GLn_fullLevel n, {
+        is_open := GLn_fullLevel_isOpen n
+        is_compact := GLn_fullLevel_isCompact n
+        finite_level := fun _ _ _ => rfl
+      }⟩
 
 -- no idea why it's not computable
 noncomputable def classification (ρ : Weight 0) : AutomorphicFormForGLnOverQ 0 ρ ≃ ℂ where
